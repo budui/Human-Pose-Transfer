@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="1004-4" autoUploadExternalChanges="true">
+    <serverData>
+      <paths name="1004-4">
+        <serverdata>
+          <mappings>
+            <mapping deploy="Human-Pose-Transfer-For-ReID" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>
