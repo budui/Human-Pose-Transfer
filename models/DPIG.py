@@ -275,7 +275,8 @@ class MappingFunc(nn.Module):
         x = self.out_linear(x)
         return x
 
-if __name__ == '__main__':
+
+def _test():
     rbb = AppearanceExtractor()
     input_img = torch.ones([2, 3, 128, 64])
     output_img = rbb(input_img)
@@ -295,5 +296,9 @@ if __name__ == '__main__':
     kpe_o = kpe(torch.cat([c, v.view(-1, 18, 1)], dim=-1))
     print("PoseEncoder output size:{}".format(kpe_o.size()))
     print("PoseDecoder output size:{}".format(kpd(kpe_o).size()))
+
+
+if __name__ == '__main__':
+    _test()
 
 

@@ -1,11 +1,7 @@
-#!/usr/bin/env python3
-
 import os
-from argparse import ArgumentParser
 import warnings
 
 import torch
-import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -18,7 +14,7 @@ from ignite.metrics import RunningAverage
 
 import dataset.bone_dataset as dataset
 import models.PG2 as PG2
-from util.v import get_current_visuals, get_current_visuals_
+from util.v import get_current_visuals_
 from loss.mask_l1 import MaskL1Loss
 from util.image_pool import ImagePool
 
@@ -31,7 +27,7 @@ PLOT_FNAME = 'plot.svg'
 CKPT_PREFIX = 'networks'
 
 
-def move_data_pair_to(device, data_pair):
+def _move_data_pair_to(device, data_pair):
     # move data to GPU
     for k in data_pair:
         if "path" in k:
@@ -41,7 +37,22 @@ def move_data_pair_to(device, data_pair):
             data_pair[k] = data_pair[k].to(device)
 
 
-def get_stage_2_trainer(option, loader_size, val_data_pair, generator_1):
+def get_trainer(option, device):
+    val_image_dataset = dataset.BoneDataset(
+        "../DataSet/Market-1501-v15.09.15/bounding_box_test/",
+        "data/market/test/pose_map_image/",
+        "data/market/test/pose_mask_image/",
+        "data/market-pairs-test.csv",
+        random_select=True,
+        random_select_size=5
+    )
+
+    val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1)
+    val_data_pair = next(iter(val_image_loader))
+    _move_data_pair_to(device, val_data_pair)
+
+    generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
+    generator_1.load_state_dict(torch.load(option.G1_path))
     generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
     discriminator = PG2.NDiscriminator(in_channels=6)
     generator_1.to(device)
@@ -65,7 +76,7 @@ def get_stage_2_trainer(option, loader_size, val_data_pair, generator_1):
     fake_pair_img_pool = ImagePool(50)
 
     def step(engine, batch):
-        move_data_pair_to(device, batch)
+        _move_data_pair_to(device, batch)
         condition_img = batch["P1"]
         condition_pose = batch["BP2"]
         target_img = batch["P2"]
@@ -168,10 +179,11 @@ def get_stage_2_trainer(option, loader_size, val_data_pair, generator_1):
                     print('\t'.join(columns), file=f)
                 print('\t'.join(values), file=f)
 
-            message = '[{epoch}/{max_epoch}][{i}/{max_i}]'.format(epoch=engine.state.epoch,
-                                                                  max_epoch=epochs,
-                                                                  i=(engine.state.iteration % loader_size),
-                                                                  max_i=loader_size)
+            message = '[{epoch}/{max_epoch}][{i}]'.format(
+                epoch=engine.state.epoch,
+                max_epoch=epochs,
+                i=engine.state.iteration
+            )
 
             message += " | G_loss(all/bce/l1): {:.4f}/{:.4f}/{:.4f}".format(
                 engine.state.metrics["loss_G"],
@@ -266,56 +278,23 @@ def get_stage_2_trainer(option, loader_size, val_data_pair, generator_1):
     return trainer
 
 
-def main(option):
-    image_dataset = dataset.BoneDataset(
-        "../DataSet/Market-1501-v15.09.15/bounding_box_train/",
-        "data/market/train/pose_map_image/",
-        "data/market/train/pose_mask_image/",
-        "data/market-pairs-train.csv",
-        random_select=True
-    )
-    print(image_dataset)
-
-    image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8, pin_memory=True)
-
-    val_image_dataset = dataset.BoneDataset(
-        "../DataSet/Market-1501-v15.09.15/bounding_box_test/",
-        "data/market/test/pose_map_image/",
-        "data/market/test/pose_mask_image/",
-        "data/market-pairs-test.csv",
-        random_select=True,
-        random_select_size=5
-    )
-
-    val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1)
-    data_pair = next(iter(val_image_loader))
-    move_data_pair_to(device, data_pair)
-
-    generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
-    generator_1.load_state_dict(torch.load("checkpoints/G1.pth"))
-
-    stage_2_trainer = get_stage_2_trainer(option, len(image_loader), data_pair, generator_1)
-
-    stage_2_trainer.run(image_loader, max_epochs=option.stage_2_epoch_num)
-
-
-if __name__ == '__main__':
-    parser = ArgumentParser(description='Training')
-    parser.add_argument('--gpu_id', default=2, type=int, help='gpu_id: e.g. 0')
-    parser.add_argument('--batch_size', default=16, type=int, help='batch size')
-    parser.add_argument("--stage_1_epoch_num", default=100, type=int, help="stage_1_epoch_num")
-    parser.add_argument("--stage_2_epoch_num", default=80, type=int, help="stage_2_epoch_num")
+def add_new_arg_for_parser(parser):
     parser.add_argument('--d_lr', type=float, default=0.00002)
     parser.add_argument('--g_lr', type=float, default=0.00002)
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
-    parser.add_argument("--output_dir", type=str, default="ckp/")
+    parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
+    parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
 
-    opt = parser.parse_args()
-    torch.cuda.set_device(opt.gpu_id)
-    cudnn.benchmark = True
 
-    device = "cuda"
-
-    main(opt)
+def get_data_loader(opt):
+    image_dataset = dataset.BoneDataset(
+        os.path.join(opt.market1501, "bounding_box_train/"),
+        "data/market/train/pose_map_image/",
+        "data/market/train/pose_mask_image/",
+        "data/market-pairs-train.csv",
+        random_select=True
+    )
+    image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8, pin_memory=True)
+    return image_loader
