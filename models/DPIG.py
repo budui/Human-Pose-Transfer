@@ -7,6 +7,7 @@ NUM_POSE_DIM = NUM_KEY_POINT*2+NUM_KEY_POINT
 NUM_MIDDLE_CHANNELS = 128
 NUM_ROI_FEATURE_DIM = 32
 NUM_BG_FEATURE_DIM = 128
+NUM_FC_MIDDLE_Z_DIM = 512
 
 
 class _ResLinear(nn.Module):
@@ -107,7 +108,7 @@ class AppearanceExtractor(nn.Module):
 
 
 class PoseDecoder(nn.Module):
-    def __init__(self, num_input=32, num_features=512, num_linear=4):
+    def __init__(self, num_input=32, num_features=NUM_FC_MIDDLE_Z_DIM, num_linear=4):
         super(PoseDecoder, self).__init__()
         self.input_linear = nn.Linear(num_input, num_features)
         self.fc_res = nn.ModuleList([_ResLinear(num_features) for _ in range(num_linear)])
@@ -122,7 +123,7 @@ class PoseDecoder(nn.Module):
 
 
 class PoseEncoder(nn.Module):
-    def __init__(self, num_output=32, num_features=512, num_linear=4):
+    def __init__(self, num_output=32, num_features=NUM_FC_MIDDLE_Z_DIM, num_linear=4):
         super(PoseEncoder, self).__init__()
         self.num_linear = num_linear
 
@@ -185,9 +186,6 @@ class FGEncoder(nn.Module):
         x = x.view(-1, self.num_res*NUM_MIDDLE_CHANNELS*3*3)
         x = self.fc(x)
         return x
-
-
-
 
 
 class AppearanceReconstructor(nn.Module):
@@ -260,7 +258,22 @@ class AppearanceReconstructor(nn.Module):
         return output
 
 
+class MappingFunc(nn.Module):
+    def __init__(self, k_dim, middle_dim=NUM_FC_MIDDLE_Z_DIM, num_middle_fc=4):
+        super(MappingFunc, self).__init__()
+        self.in_linear = nn.Linear(k_dim, middle_dim)
+        self.middle_linears = nn.ModuleList([
+            _ResLinear(middle_dim)
+            for _ in range(num_middle_fc)
+        ])
+        self.out_linear = nn.Linear(middle_dim, k_dim)
 
+    def forward(self, z):
+        x = self.in_linear(z)
+        for l in self.middle_linears:
+            x = l(x)
+        x = self.out_linear(x)
+        return x
 
 if __name__ == '__main__':
     rbb = AppearanceExtractor()
