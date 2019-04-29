@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 from argparse import ArgumentParser
 import torch
 import torch.backends.cudnn as cudnn
@@ -25,18 +26,25 @@ def main():
     top_parser.add_argument("--name",
                             default=IMPLEMENTED_TRAIN_ENGINE[0],
                             type=str,
-                            required=True,
                             choices=IMPLEMENTED_TRAIN_ENGINE,
                             help="train what?")
     top_parser.add_argument("-h", "--help",
                             action='store_true',
                             help="""
-                                show this message.
-                                if name is specified, help message for train arg parser also will be show.
+                                show this message. if name is specified, 
+                                help message for train arg parser also will be show.
                                 """)
     top_opt, other_args = top_parser.parse_known_args()
+
+    have_specified_name = "--name" in sys.argv
+
     if top_opt.help:
         top_parser.print_help()
+        print("\nSupported train engine for now:\n")
+        for e in IMPLEMENTED_TRAIN_ENGINE:
+            print("* " + e)
+        print("\tYou use choose one of above as engine!")
+        return
 
     train = select_train(top_opt.name)
 
@@ -49,7 +57,7 @@ def main():
 
     opt = parser.parse_args(other_args)
 
-    if top_opt.help:
+    if top_opt.help and have_specified_name:
         print(parser.format_help())
         return
 

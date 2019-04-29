@@ -21,7 +21,10 @@
 
 ## Train
 
-`python3 train_ignite.py`
+1. use `python3 train.py -h` to see support train process.
+2. use `python3 train.py --name <TrainName> -h` to see train option for <TrainName>.
+3. use `python3 train.py --name <TrainName>` to train.
+
 
 ## Test 
 
