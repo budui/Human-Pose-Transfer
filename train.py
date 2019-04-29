@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-import dataset.dataset as dataset
+import dataset.bone_dataset as dataset
 import models.PG2 as PG2
 import util.util as util
 from loss.mask_l1 import MaskL1Loss

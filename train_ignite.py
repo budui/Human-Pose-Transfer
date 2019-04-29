@@ -16,7 +16,7 @@ from ignite.handlers import ModelCheckpoint, Timer
 from ignite.metrics import RunningAverage
 
 
-import dataset.dataset as dataset
+import dataset.bone_dataset as dataset
 import models.PG2 as PG2
 from util.v import get_current_visuals, get_current_visuals_
 from loss.mask_l1 import MaskL1Loss

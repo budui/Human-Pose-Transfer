@@ -8,7 +8,7 @@ import torch.backends.cudnn as cudnn
 from argparse import ArgumentParser
 
 import util.util as util
-import dataset.dataset as dataset
+import dataset.bone_dataset as dataset
 
 import models.PG2 as PG2
 
