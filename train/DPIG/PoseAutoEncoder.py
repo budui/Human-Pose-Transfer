@@ -1,8 +1,8 @@
-import os, warnings
+import os
+import itertools
 
 import torch.nn as nn
 import torch.optim as optim
-
 from torch.utils.data import DataLoader
 
 from ignite.contrib.handlers import ProgressBar
@@ -13,9 +13,10 @@ from ignite.metrics import RunningAverage
 from dataset.key_point_dataset import KeyPointDataset
 from models.DPIG import PoseDecoder, PoseEncoder
 from util.vis.pose import show as show_pose
+from train import common_handler
 
 
-PRINT_FREQ = 50
+PRINT_FREQ = 200
 FAKE_IMG_FNAME = 'epoch_{:04d}.png'
 VAL_IMG_FNAME = 'train_img/epoch_{:04d}_{:04d}.png'
 LOGS_FNAME = 'loss.log'
@@ -33,11 +34,15 @@ def get_trainer(option, device):
     epochs = option.epochs
 
     l2_loss = nn.MSELoss()
+    l2_loss.to(device)
 
-    op_auto_encoder = optim.Adam(pose_decoder.parameters() + pose_encoder.parameters())
+    op_auto_encoder = optim.Adam(
+        itertools.chain(pose_decoder.parameters(), pose_encoder.parameters()),
+        lr=option.lr, betas=(option.beta1, option.beta2)
+    )
 
     def step(engine, origin_pose):
-        origin_pose.to(device)
+        origin_pose = origin_pose.to(device)
 
         op_auto_encoder.zero_grad()
 
@@ -56,28 +61,28 @@ def get_trainer(option, device):
 
     trainer = Engine(step)
 
-    timer = Timer(average=True)
-
-    timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
-                 pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)
-
-    checkpoint_handler = ModelCheckpoint(output_dir, CKPT_PREFIX, save_interval=2, n_saved=5, require_empty=False)
-
-    trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler,
-                              to_save={
-                                  'pose_encoder': pose_encoder,
-                                  'pose_decoder': pose_decoder
-                              })
     RunningAverage(output_transform=lambda x: x["recon_loss"]).attach(trainer, 'loss')
-
     # attach progress bar
     pbar = ProgressBar()
     pbar.attach(trainer, metric_names=["loss"])
+    timer = Timer(average=True)
+    timer.attach(trainer, start=Events.EPOCH_STARTED, resume=Events.ITERATION_STARTED,
+                 pause=Events.ITERATION_COMPLETED, step=Events.ITERATION_COMPLETED)
+
+    @trainer.on(Events.EPOCH_COMPLETED)
+    def print_times(engine):
+        pbar.log_message('Epoch {} done. Time: {:.3f}[batch/s]*{}[batch] = {:.3f}[s]'.format(
+            engine.state.epoch,
+            timer.value(),
+            engine.state.iteration,
+            timer.value() * engine.state.iteration
+        ))
+        timer.reset()
 
     @trainer.on(Events.STARTED)
     def mkdir(engine):
-        if not os.path.exists(os.path.dirname(VAL_IMG_FNAME)):
-            os.makedirs(os.path.dirname(VAL_IMG_FNAME))
+        if not os.path.exists(os.path.join(output_dir, os.path.dirname(VAL_IMG_FNAME))):
+            os.makedirs(os.path.join(output_dir, os.path.dirname(VAL_IMG_FNAME)))
 
     @trainer.on(Events.ITERATION_COMPLETED)
     def print_logs(engine):
@@ -110,51 +115,17 @@ def get_trainer(option, device):
                 ))
             )
 
-    @trainer.on(Events.EPOCH_COMPLETED)
-    def print_times(engine):
-        pbar.log_message('Epoch {} done. Time per batch: {:.3f}[s]'.format(engine.state.epoch, timer.value()))
-        timer.reset()
+    create_plots = common_handler.make_handle_create_plots(output_dir, LOGS_FNAME, PLOT_FNAME)
+    checkpoint_handler = ModelCheckpoint(output_dir, CKPT_PREFIX, save_interval=2, n_saved=5, require_empty=False)
 
-    @trainer.on(Events.EPOCH_COMPLETED)
-    def create_plots(engine):
-        try:
-            import matplotlib as mpl
-            mpl.use('agg')
+    networks_to_save = dict(pose_encoder=pose_encoder, pose_decoder=pose_decoder)
 
-            import numpy as np
-            import pandas as pd
-            import matplotlib.pyplot as plt
-
-        except ImportError:
-            warnings.warn('Loss plots will not be generated -- pandas or matplotlib not found')
-
-        else:
-            df = pd.read_csv(os.path.join(output_dir, LOGS_FNAME), delimiter='\t')
-            # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
-            _ = df.plot(subplots=True, figsize=(10, 10))
-            _ = plt.xlabel('Iteration number')
-            fig = plt.gcf()
-            path = os.path.join(output_dir, PLOT_FNAME)
-
-            fig.savefig(path)
-            fig.clear()
-
-    # adding handlers using `trainer.on` decorator API
-    @trainer.on(Events.EXCEPTION_RAISED)
-    def handle_exception(engine, e):
-        if isinstance(e, KeyboardInterrupt) and (engine.state.iteration > 1):
-            engine.terminate()
-            warnings.warn('KeyboardInterrupt caught. Exiting gracefully.')
-
-            create_plots(engine)
-            checkpoint_handler(engine, {
-                'encoder_exception': pose_encoder,
-                'decoder_exception': pose_decoder
-            })
-
-        else:
-            raise e
-
+    trainer.add_event_handler(event_name=Events.EPOCH_COMPLETED, handler=checkpoint_handler, to_save=networks_to_save)
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, create_plots)
+    trainer.add_event_handler(
+        Events.EXCEPTION_RAISED,
+        common_handler.make_handle_handle_exception(checkpoint_handler, networks_to_save, create_plots)
+    )
     return trainer
 
 
@@ -167,7 +138,9 @@ def add_new_arg_for_parser(parser):
 
 
 def get_data_loader(option):
+    print("loading dataset ...")
     dataset = KeyPointDataset(option.key_points_dir)
+    print(dataset)
     loader = DataLoader(dataset, batch_size=option.batch_size, num_workers=8, pin_memory=True)
     return loader
 

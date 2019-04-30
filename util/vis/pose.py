@@ -24,11 +24,13 @@ IMAGE_SIZE = (128, 64)
 
 def show(poses, save_path, pose_has_norm=True):
     vis = np.zeros((IMAGE_SIZE[0], IMAGE_SIZE[1] * len(poses), 3)).astype(np.uint8)
+
     for i, p in enumerate(poses):
+        p = p.to("cpu")
         pose_joints, _ = p.split([2, 1], dim=-1)
         if pose_has_norm:
             pose_joints = pose_joints.mul(torch.Tensor([IMAGE_SIZE]).expand([18, 2]))
-        colors = draw_pose_from_cords(pose_joints, IMAGE_SIZE)
+        colors = draw_pose_from_cords(pose_joints.to(torch.int), IMAGE_SIZE)
         vis[:,IMAGE_SIZE[1]*i:IMAGE_SIZE[1]*(i+1),:] = colors
     util.save_image(vis, save_path)
 
@@ -44,7 +46,10 @@ def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
             if from_missing or to_missing:
                 continue
             yy, xx, val = line_aa(pose_joints[f][0], pose_joints[f][1], pose_joints[t][0], pose_joints[t][1])
-            colors[yy, xx] = np.expand_dims(val, 1) * 255
+            try:
+                colors[yy, xx] = np.expand_dims(val, 1) * 255
+            except IndexError:
+                print(xx, yy)
 
     for i, joint in enumerate(pose_joints):
         if pose_joints[i][0] == MISSING_VALUE or pose_joints[i][1] == MISSING_VALUE:
@@ -54,3 +59,12 @@ def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
 
     return colors
 
+
+def _test():
+    pose = torch.ones([18, 3])
+    pose = pose*0.5
+    show([pose], "./pose.jpg")
+
+
+if __name__ == '__main__':
+    _test()

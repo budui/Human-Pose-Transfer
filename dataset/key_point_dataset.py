@@ -13,6 +13,7 @@ IMG_SIZE = (128, 64)
 class KeyPointDataset(Dataset):
     def __init__(self, annotation_file_path, norm=True):
         assert os.path.exists(annotation_file_path)
+        self.annotation_file_path = annotation_file_path
         self.norm = norm
         self.coordinates = self._load_annotations(annotation_file_path)
         self.visibility = self._check_visibility(self.coordinates)
@@ -51,6 +52,11 @@ class KeyPointDataset(Dataset):
         else:
             norm_coord = self.coordinates[index].div(torch.Tensor([IMG_SIZE]).expand([KEY_POINTS_NUM, 2]))
             return torch.cat([norm_coord, self.visibility[index]], dim=-1)
+
+    def __repr__(self):
+        return "<KeyPointDataset path:{path} number:{len} norm:{norm})>".format(
+            path=self.annotation_file_path, len=len(self), norm=self.norm
+        )
 
 
 if __name__ == '__main__':
