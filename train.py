@@ -12,12 +12,13 @@ IMPLEMENTED_TRAIN_ENGINE = [
 
 
 def select_train(name):
-    if name == "DPIG-1-Pose":
+    if name == IMPLEMENTED_TRAIN_ENGINE[0]:
         from train.DPIG import PoseAutoEncoder as train
-    if name == "PG2-2":
+    elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
         from train.PG2 import stage_2 as train
     else:
         raise NotImplementedError("You have not implement {}".format(name))
+    print("begin to train {}".format(name))
     return train
 
 
@@ -51,7 +52,7 @@ def main():
     parser = ArgumentParser(description='Training {}'.format(top_opt.name))
     parser.add_argument('--gpu_id', default=2, type=int, help='gpu_id: e.g. 0')
     parser.add_argument('--batch_size', default=16, type=int, help='batch size')
-    parser.add_argument("--epochs", default=80, type=int, help="epoch_num")
+    parser.add_argument("--epochs", default=20, type=int, help="epoch_num")
     parser.add_argument("--output_dir", type=str, default="ckp/")
     train.add_new_arg_for_parser(parser)
 
@@ -62,6 +63,7 @@ def main():
         return
 
     torch.cuda.set_device(opt.gpu_id)
+    print("using GPU {}".format(opt.gpu_id))
     cudnn.benchmark = True
     device = "cuda"
 
