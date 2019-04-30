@@ -18,7 +18,6 @@ def select_train(name):
         from train.PG2 import stage_2 as train
     else:
         raise NotImplementedError("You have not implement {}".format(name))
-    print("begin to train {}".format(name))
     return train
 
 
@@ -39,7 +38,7 @@ def main():
 
     have_specified_name = "--name" in sys.argv
 
-    if top_opt.help:
+    if top_opt.help and not have_specified_name:
         top_parser.print_help()
         print("\nSupported train engine for now:\n")
         for e in IMPLEMENTED_TRAIN_ENGINE:
@@ -63,7 +62,7 @@ def main():
         return
 
     torch.cuda.set_device(opt.gpu_id)
-    print("using GPU {}".format(opt.gpu_id))
+    print("Begin to train {}, using GPU {}".format(top_opt.name, opt.gpu_id))
     cudnn.benchmark = True
     device = "cuda"
 
