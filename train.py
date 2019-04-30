@@ -49,10 +49,16 @@ def main():
     train = select_train(top_opt.name)
 
     parser = ArgumentParser(description='Training {}'.format(top_opt.name))
-    parser.add_argument('--gpu_id', default=2, type=int, help='gpu_id: e.g. 0')
+    parser.add_argument('--gpu_id', default=0, type=int, help='gpu_id: e.g. 0')
     parser.add_argument('--batch_size', default=16, type=int, help='batch size')
     parser.add_argument("--epochs", default=20, type=int, help="epoch_num")
     parser.add_argument("--output_dir", type=str, default="ckp/")
+    parser.add_argument("--print_freq", type=int, default=100, help="freq of print log message, "
+                                                                    "default is every 100 iterations")
+    parser.add_argument("--save_interval", default=3, type=int, help="models will be saved to disk "
+                                                                     "every save_interval calls to the handler.")
+    parser.add_argument("--n_saved", default=10, type=int, help="Number of models that should be kept on disk. "
+                                                                "Older files will be removed.")
     train.add_new_arg_for_parser(parser)
 
     opt = parser.parse_args(other_args)
