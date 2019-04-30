@@ -44,7 +44,7 @@ def main():
         print("\nSupported train engine for now:\n")
         for e in IMPLEMENTED_TRAIN_ENGINE:
             print("* " + e)
-        print("\tYou use choose one of above as engine!")
+        print("\tYou must choose one of above as engine!")
         return
 
     train = select_train(top_opt.name)
