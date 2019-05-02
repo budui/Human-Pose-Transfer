@@ -11,7 +11,8 @@ def interpolation(pose_1, pose_2, pose_encoder, pose_decoder, num_inner_points=5
 
 
 def from_noise(pose_decoder, batch_size, device, z_dim=32):
-    z =  torch.randn(batch_size, z_dim, 1, 1, device=device)
+    z = torch.randn(batch_size, z_dim, device=device)
+    print(z.size())
     poses = pose_decoder(z)
     return poses
 
@@ -31,9 +32,6 @@ def _test():
     print(torch.cuda.device_count())
     encoder_path = "data/market/models/pose_encoder.pth"
     decoder_path = "data/market/models/pose_decoder.pth"
-    pose_decoder = PoseDecoder()
-    d  = torch.load(decoder_path)
-    pose_decoder.load_state_dict()
     pose_encoder = _load_model(PoseEncoder, encoder_path, device)
     pose_decoder = _load_model(PoseDecoder, decoder_path, device)
 
