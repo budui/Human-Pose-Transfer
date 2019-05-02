@@ -3,6 +3,7 @@
 import csv
 import json
 import os
+from argparse import ArgumentParser
 
 import numpy as np
 from skimage.draw import circle
@@ -108,4 +109,8 @@ def main(dataset, d_type):
 
 
 if __name__ == '__main__':
-    main("market", "train")
+    parser = ArgumentParser(description='generate 18-channels pose image and use pose to draw mask')
+    parser.add_argument("--dataset", type=str, default="market")
+    parser.add_argument("--type", type=str, default="train")
+    opt = parser.parse_args()
+    main(opt.dataset, opt.type)

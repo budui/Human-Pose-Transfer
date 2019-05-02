@@ -35,12 +35,12 @@ Finally, `data` folder looks like:
 ```text
 data
 ├── market
-│   ├── annotation-test.csv
-│   ├── annotation-train.csv
-│   ├── test
+│   ├── annotation-test.csv # PLEASE USE THE SAME FILENAME
+│   ├── annotation-train.csv # PLEASE USE THE SAME FILENAME
+│   ├── test # WILL BE GENERATED IN NEXT STEP
 │   │   ├── pose_map_image
 │   │   └── pose_mask_image
-│   └── train
+│   └── train # WILL BE GENERATED IN NEXT STEP
 │       ├── pose_map_image
 │       └── pose_mask_image
 ├── market-pairs-test.csv
@@ -50,7 +50,8 @@ data
 ### Generate Pose 18-channels image and corresponding mask
 
 
-1. `python3 tool/generate_pose_map_add_mask.py`
+1. `python3 tool/generate_pose_map_add_mask.py --type train`
+1. `python3 tool/generate_pose_map_add_mask.py --type test`
 
 
 ## Train
