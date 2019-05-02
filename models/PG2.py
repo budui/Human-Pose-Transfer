@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.nn.functional
 
 
-class G1BasicBlock(nn.Module):
+class _G1BasicBlock(nn.Module):
     def __init__(self, is_last_block, in_channels, out_channels,
                  kernel_size=3, stride=1, padding=1, in_decoder=False):
-        super(G1BasicBlock, self).__init__()
+        super(_G1BasicBlock, self).__init__()
         self.is_last_block = is_last_block
         self.in_decoder = in_decoder
         self.block_2conv = nn.Sequential(
@@ -44,7 +44,7 @@ class G1BasicBlock(nn.Module):
 
 
 class G1(nn.Module):
-    def __init__(self, in_channels, hidden_num=128, repeat_num=6, middle_z_dim=128, half_width=False):
+    def __init__(self, in_channels=18+3, hidden_num=128, repeat_num=6, middle_z_dim=128, half_width=False):
         super(G1, self).__init__()
         self.hidden_num = hidden_num
         self.repeat_num = repeat_num
@@ -64,7 +64,7 @@ class G1(nn.Module):
         self.encoder_blocks = []
         for i in range(self.repeat_num):
             setattr(self, "en_block_{}".format(i),
-                    G1BasicBlock(i == self.repeat_num - 1, self.hidden_num * (i + 1), self.hidden_num * (i + 2)))
+                    _G1BasicBlock(i == self.repeat_num - 1, self.hidden_num * (i + 1), self.hidden_num * (i + 2)))
             self.encoder_blocks.append(getattr(self, "en_block_{}".format(i)))
 
         self.fc1 = nn.Linear(self.middle_feature_dim, self.middle_z_dim)
@@ -79,10 +79,10 @@ class G1(nn.Module):
         self.decoder_blocks = []
         for i in range(self.repeat_num):
             setattr(self, "de_block_{}".format(i),
-                    G1BasicBlock(i == self.repeat_num - 1,
-                                 in_channels=in_channels_list[i],
-                                 out_channels=self.hidden_num * (self.repeat_num - i - 1),
-                                 in_decoder=True))
+                    _G1BasicBlock(i == self.repeat_num - 1,
+                                  in_channels=in_channels_list[i],
+                                  out_channels=self.hidden_num * (self.repeat_num - i - 1),
+                                  in_decoder=True))
             self.decoder_blocks.append(getattr(self, "de_block_{}".format(i)))
 
         self.last_conv = nn.Conv2d(in_channels_list[-1], 3, kernel_size=3, stride=1, padding=1)
@@ -112,10 +112,10 @@ class G1(nn.Module):
         return output
 
 
-class G2BasicBlock(nn.Module):
+class _G2BasicBlock(nn.Module):
     def __init__(self, is_last_block, in_channels, out_channels,
                  kernel_size=3, stride=1, padding=1, in_decoder=False):
-        super(G2BasicBlock, self).__init__()
+        super(_G2BasicBlock, self).__init__()
         self.is_last_block = is_last_block
         self.in_decoder = in_decoder
         self.block_2conv = nn.Sequential(
@@ -144,7 +144,7 @@ class G2BasicBlock(nn.Module):
 
 
 class G2(nn.Module):
-    def __init__(self, in_channels, hidden_num=128, repeat_num=4, skip_connect=0):
+    def __init__(self, in_channels=3+3, hidden_num=128, repeat_num=4, skip_connect=0):
         super(G2, self).__init__()
         self.hidden_num = hidden_num
         self.repeat_num = repeat_num
@@ -159,7 +159,7 @@ class G2(nn.Module):
         for i in range(self.repeat_num):
             block_in_channels = self.hidden_num * i if i > 0 else self.hidden_num
             setattr(self, "en_block_{}".format(i),
-                    G2BasicBlock(i == self.repeat_num - 1, block_in_channels, self.hidden_num * (i + 1)))
+                    _G2BasicBlock(i == self.repeat_num - 1, block_in_channels, self.hidden_num * (i + 1)))
             self.encoder_blocks.append(getattr(self, "en_block_{}".format(i)))
 
         skip_connection_channels = [self.hidden_num * self.repeat_num] + \
@@ -171,10 +171,10 @@ class G2(nn.Module):
         self.decoder_blocks = []
         for i in range(self.repeat_num):
             setattr(self, "de_block_{}".format(i),
-                    G2BasicBlock(i == self.repeat_num - 1,
-                                 in_channels=in_channels_list[i],
-                                 out_channels=self.hidden_num,
-                                 in_decoder=True))
+                    _G2BasicBlock(i == self.repeat_num - 1,
+                                  in_channels=in_channels_list[i],
+                                  out_channels=self.hidden_num,
+                                  in_decoder=True))
             self.decoder_blocks.append(getattr(self, "de_block_{}".format(i)))
 
         self.last_conv = nn.Conv2d(self.hidden_num, 3, kernel_size=3, stride=1, padding=1)

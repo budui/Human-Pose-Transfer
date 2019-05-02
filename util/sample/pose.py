@@ -19,8 +19,7 @@ def from_noise(pose_decoder, batch_size, device, z_dim=32):
 
 def _test():
     from models.DPIG import PoseDecoder, PoseEncoder
-    from test.sample_pose import _load_model
-    from dataset.key_point_dataset import KeyPointDataset
+    from test.DPIG.sample_pose import _load_model
     from util.vis.pose import show as show_pose
     import torch
     import torch.backends.cudnn as cudnn
