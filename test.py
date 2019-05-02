@@ -7,14 +7,15 @@ import torch.backends.cudnn as cudnn
 
 IMPLEMENTED_TRAIN_ENGINE = [
     "DPIG-Pose",
+    "Generate"
 ]
 
 
 def select_test(name):
     if name == IMPLEMENTED_TRAIN_ENGINE[0]:
-        from test import PoseSample as test
-    # elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
-    #    pass
+        from test import sample_pose as test
+    elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
+        from test import generate as test
     else:
         raise NotImplementedError("You have not implement {}".format(name))
     return test

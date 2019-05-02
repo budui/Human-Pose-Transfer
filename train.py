@@ -13,7 +13,7 @@ IMPLEMENTED_TRAIN_ENGINE = [
 
 def select_train(name):
     if name == IMPLEMENTED_TRAIN_ENGINE[0]:
-        from train.DPIG import PoseAutoEncoder as train
+        from train.DPIG import pose_auto_encoder as train
     elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
         from train.PG2 import stage_2 as train
     else:
