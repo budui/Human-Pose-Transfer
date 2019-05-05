@@ -15,7 +15,7 @@ def select_test(name):
     if name == IMPLEMENTED_TRAIN_ENGINE[0]:
         from test.DPIG import sample_pose as test
     elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
-        from test.PG2 import generate as test
+        from test import generate as test
     else:
         raise NotImplementedError("You have not implement {}".format(name))
     return test
@@ -52,9 +52,10 @@ def main():
     parser.add_argument('--gpu_id', default=0, type=int, help='gpu_id: e.g. 0')
     parser.add_argument('--batch_size', default=8, type=int, help='batch size')
     parser.add_argument("--output_dir", type=str, default="ckp/")
-    test.add_new_arg_for_parser(parser)
+    test.add_new_arg_for_parser(parser, top_opt.name)
 
     opt = parser.parse_args(other_args)
+    opt.name = top_opt.name
 
     if top_opt.help and have_specified_name:
         print(parser.format_help())

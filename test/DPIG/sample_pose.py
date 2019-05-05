@@ -70,7 +70,7 @@ def get_tester(option, device):
     return tester
 
 
-def add_new_arg_for_parser(parser):
+def add_new_arg_for_parser(parser, name):
     parser.add_argument("--key_points_dir", type=str,
                         default="data/market/annotation-test.csv")
     parser.add_argument("--encoder_path", type=str)
