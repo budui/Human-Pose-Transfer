@@ -34,10 +34,10 @@ def _move_data_pair_to(device, data_pair):
 
 def get_trainer(option, device):
     val_image_dataset = dataset.BoneDataset(
-        "../DataSet/Market-1501-v15.09.15/bounding_box_test/",
+        os.path.join(option.market1501, "bounding_box_test/"),
         "data/market/test/pose_map_image/",
         "data/market/test/pose_mask_image/",
-        "data/market-pairs-test.csv",
+        option.test_pair_path,
         random_select=True,
         random_select_size=5
     )
@@ -203,6 +203,8 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
+    parser.add_argument('--train_pair_path', type=str, default="data/market-pairs-train.csv")
+    parser.add_argument('--test_pair_path', type=str, default="data/market-pairs-test.csv")
 
 
 def get_data_loader(opt):
@@ -210,7 +212,7 @@ def get_data_loader(opt):
         os.path.join(opt.market1501, "bounding_box_train/"),
         "data/market/train/pose_map_image/",
         "data/market/train/pose_mask_image/",
-        "data/market-pairs-train.csv",
+        opt.train_pair_path,
         random_select=True
     )
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8, pin_memory=True, drop_last=True)
