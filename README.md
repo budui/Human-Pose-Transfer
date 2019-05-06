@@ -29,22 +29,29 @@ provided by [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-pre
 2. download 18 key points pose data from [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation)
 3. download train and test pair from [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation)
 4. copy&rename above pair and annotation file to `data`
+5. download Market1501 attribute from [Market-1501_Attribute](https://github.com/vana77/Market-1501_Attribute)
 
 Finally, `data` folder looks like:
 
 ```text
 data
 ├── market
-│   ├── annotation-test.csv # PLEASE USE THE SAME FILENAME
-│   ├── annotation-train.csv # PLEASE USE THE SAME FILENAME
+│   ├── annotation-test.csv
+│   ├── annotation-train.csv
+│   ├── pairs-test.csv
+│   ├── pairs-train.csv
+│   ├── attribute
+│   │   ├── evaluate_market_attribute.m
+│   │   ├── gallery_market.mat
+│   │   ├── market_attribute.mat
+│   │   ├── README.md
+│   │   └── sample_image.jpg
 │   ├── test # WILL BE GENERATED IN NEXT STEP
 │   │   ├── pose_map_image
 │   │   └── pose_mask_image
 │   └── train # WILL BE GENERATED IN NEXT STEP
 │       ├── pose_map_image
 │       └── pose_mask_image
-├── market-pairs-test.csv
-├── market-pairs-train.csv
 ```
 
 ### Generate Pose 18-channels image and corresponding mask
