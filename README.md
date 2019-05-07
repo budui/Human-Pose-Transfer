@@ -10,13 +10,12 @@
 
 ### Requirement
 
-* pytorch 1.0
+* pytorch **1.0+**
 * ignite
 * torchvision
 * numpy
 * scipy
 * scikit-image
-* pillow
 * pandas
 * tqdm
 
@@ -70,7 +69,26 @@ data
 
 ## Test 
 
-`python3 test.py`
+1. use `python3 test.py -h` to see support test process.
+2. use `python3 test.py --name <TestName> -h` to see test option for `TestName`.
+3. use `python3 test.py --name <TestName>` to test.
+
+
+## Eval
+
+For fair comparisons, I just copy&use the same evaluation codes in previous works Deform, PG2 and PATN 
+which used some outdated frameworks, like `Tensorflow 1.4.1`(python3)
+
+I recommend using docker to evaluate the results:
+
+```
+docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm tensorflow/tensorflow:1.4.1-gpu-py3 bash
+# now in docker:
+$ pip install scikit-image tqdm 
+$ python tool/getMetrics_market.py
+``` 
+
+
 
 ## Thanks
 

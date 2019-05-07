@@ -203,8 +203,8 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
-    parser.add_argument('--train_pair_path', type=str, default="data/market-pairs-train.csv")
-    parser.add_argument('--test_pair_path', type=str, default="data/market-pairs-test.csv")
+    parser.add_argument('--train_pair_path', type=str, default="data/market/pairs-train.csv")
+    parser.add_argument('--test_pair_path', type=str, default="data/market/pairs-test.csv")
 
 
 def get_data_loader(opt):
