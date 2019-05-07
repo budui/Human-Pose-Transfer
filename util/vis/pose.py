@@ -5,6 +5,7 @@ from skimage.draw import circle, line_aa
 import util.util as util
 
 # draw pose img
+# ref https://github.com/CMU-Perceptual-Computing-Lab/openpose/raw/master/doc/media/keypoints_pose_18.png
 LIMB_SEQ = [[1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9],
             [9, 10], [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16],
             [0, 15], [15, 17], [2, 16], [5, 17]]
@@ -15,6 +16,21 @@ COLORS = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0]
 
 LABELS = ['nose', 'neck', 'Rsho', 'Relb', 'Rwri', 'Lsho', 'Lelb', 'Lwri',
           'Rhip', 'Rkne', 'Rank', 'Lhip', 'Lkne', 'Lank', 'Leye', 'Reye', 'Lear', 'Rear']
+
+# 7 Body Regions-Of-Interest from <Spindle Net: Person Re-identification with Human Body Region
+# Guided Feature Decomposition and Fusion>
+# seven body sub-regions, including three macro sub-regions (head-shoulder,
+# upper body, lower body) and four micro sub-regions (two arms, two legs)
+BODY_ROI_7 = [
+    [0, 1, 2, 5, 14, 15, 16, 17],
+    [2, 3, 4, 5, 6, 7, 8, 11],
+    [8, 9, 10, 11, 12, 13],
+    [2, 3, 4],
+    [5, 6, 7],
+    [8, 9, 10],
+    [11, 12, 13]
+]
+
 
 MISSING_VALUE = -1
 
@@ -30,7 +46,7 @@ def _is_invalid(point, visibility, mode="gen", image_size=(128, 64)):
         raise NotImplementedError("invalid mode <{}> for _check_valid".format(mode))
 
 
-def show(poses, save_path, pose_has_norm=True, image_size=(128, 64)):
+def show_with_visibility(poses, save_path, pose_has_norm=True, image_size=(128, 64)):
     # not a batch of pose
     if len(poses[0].size()) == 2:
         vis = np.zeros((image_size[0], image_size[1] * len(poses), 3)).astype(np.uint8)
@@ -53,16 +69,16 @@ def show(poses, save_path, pose_has_norm=True, image_size=(128, 64)):
             for bi in range(len(pose_joints)):
                 per_pose_in_batch = pose_joints[bi]
                 per_v = visibility[bi]
-                colors = draw_pose_from_cords(per_pose_in_batch, per_v, image_size)
+                colors = draw_pose_from_cords_and_visibility(per_pose_in_batch, per_v, image_size)
                 vis[bi * image_size[0]:(bi + 1) * image_size[0], image_size[1] * i:image_size[1] * (i + 1), :] = colors
         else:
-            colors = draw_pose_from_cords(pose_joints, visibility, image_size)
+            colors = draw_pose_from_cords_and_visibility(pose_joints, visibility, image_size)
             vis[:, image_size[1] * i:image_size[1] * (i + 1), :] = colors
     util.save_image(vis, save_path)
 
 
 # draw pose from map
-def draw_pose_from_cords(pose_joints, visibility, img_size, radius=2, draw_joints=True):
+def draw_pose_from_cords_and_visibility(pose_joints, visibility, img_size, radius=2, draw_joints=True):
     colors = np.zeros(shape=img_size + (3,), dtype=np.uint8)
 
     if draw_joints:
@@ -87,7 +103,7 @@ def draw_pose_from_cords(pose_joints, visibility, img_size, radius=2, draw_joint
 def _test():
     pose = torch.ones([18, 3])
     pose = pose * 0.5
-    show([pose], "./pose.jpg")
+    show_with_visibility([pose], "./pose.jpg")
 
 
 if __name__ == '__main__':

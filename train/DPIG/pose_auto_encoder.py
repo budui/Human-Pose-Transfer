@@ -12,7 +12,7 @@ from ignite.metrics import RunningAverage
 
 from dataset.key_point_dataset import KeyPointDataset
 from models.DPIG import PoseDecoder, PoseEncoder
-from util.vis.pose import show as show_pose
+from util.vis.pose import show_with_visibility as show_pose
 from train.common_handler import warp_common_handler
 
 
