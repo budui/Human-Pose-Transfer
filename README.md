@@ -85,7 +85,7 @@ I recommend using docker to evaluate the results:
 docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm tensorflow/tensorflow:1.4.1-gpu-py3 bash
 # now in docker:
 $ pip install scikit-image tqdm 
-$ python tool/getMetrics_market.py
+$ python evaluate/getMetrics_market.py
 ``` 
 
 
