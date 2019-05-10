@@ -8,7 +8,7 @@ import collections
 from skimage.draw import circle, line_aa, polygon
 
 
-def tensor2im_(image_tensor, imtype=np.uint8):
+def tensor2image(image_tensor, imtype=np.uint8):
     image_numpy = image_tensor.cpu().float().numpy()
     if image_numpy.shape[0] == 1:
         image_numpy = np.tile(image_numpy, (3, 1, 1))

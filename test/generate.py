@@ -30,9 +30,9 @@ def get_tester(option, device):
             # image height and width
             image_size = (generated_imgs.size(2), generated_imgs.size(3))
             image = np.zeros((image_size[0], image_size[1] * 3, 3)).astype(np.uint8)
-            image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2im_(batch["P1"].data[i])
-            image[:, 1 * image_size[1]:2 * image_size[1], :] = util.tensor2im_(batch["P2"].data[i])
-            image[:, 2 * image_size[1]:3 * image_size[1], :] = util.tensor2im_(generated_imgs.data[i])
+            image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2image(batch["P1"].data[i])
+            image[:, 1 * image_size[1]:2 * image_size[1], :] = util.tensor2image(batch["P2"].data[i])
+            image[:, 2 * image_size[1]:3 * image_size[1], :] = util.tensor2image(generated_imgs.data[i])
             util.save_image(
                 image,
                 os.path.join(output_dir, "{}___{}_vis.jpg".format(condition_names[i], target_names[i]))
