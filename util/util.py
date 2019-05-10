@@ -51,14 +51,6 @@ def map_to_cord(pose_map, threshold=0.1):
     return np.concatenate([np.expand_dims(y_values, -1), np.expand_dims(x_values, -1)], axis=1)
 
 
-def draw_pose_from_map(pose_map, threshold=0.1, **kwargs):
-    # CHW -> HCW -> HWC
-    pose_map = pose_map.cpu().transpose(1, 0).transpose(2, 1).numpy()
-
-    cords = map_to_cord(pose_map, threshold=threshold)
-    return draw_pose_from_cords(cords, pose_map.shape[:2], **kwargs)
-
-
 # draw pose from map
 def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
     colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)

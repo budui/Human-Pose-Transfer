@@ -19,10 +19,11 @@ def get_current_visuals_(img_path, data_pair, new_imgs=None):
             for nimg in new_imgs:
                 new_img_list.append(util.tensor2image(nimg.data[i]))
         input_P1 = util.tensor2image(data_pair["P1"].data[i])
+        image_size = input_P1.shape[:2]
         input_P2 = util.tensor2image(data_pair["P2"].data[i])
         input_p2_mask = util.tensor2image(data_pair["MP2"].data[i])
-        input_BP1 = util.draw_pose_from_map(data_pair["BP1"].data[i])[0]
-        input_BP2 = util.draw_pose_from_map(data_pair["BP2"].data[i])[0]
+        input_BP1 = util.draw_pose_from_cords(data_pair["KP1"].data[i], image_size)[0]
+        input_BP2 = util.draw_pose_from_cords(data_pair["KP2"].data[i], image_size)[0]
 
         make_vis([input_P1, input_BP1, input_P2, input_BP2, input_p2_mask] + new_img_list, i)
 
@@ -45,11 +46,12 @@ def get_current_visuals(img_path, data_pair, generated_img1, generated_img2=None
 
     for i in range(image_num):
         input_P1 = util.tensor2image(data_pair["P1"].data[i])
+        image_size = input_P1.shape[:2]
         input_P2 = util.tensor2image(data_pair["P2"].data[i])
         input_p2_mask = util.tensor2image(data_pair["MP2"].data[i])
         fake_p1 = util.tensor2image(generated_img1.data[i])
-        input_BP1 = util.draw_pose_from_map(data_pair["BP1"].data[i])[0]
-        input_BP2 = util.draw_pose_from_map(data_pair["BP2"].data[i])[0]
+        input_BP1 = util.draw_pose_from_cords(data_pair["KP1"].data[i], image_size)[0]
+        input_BP2 = util.draw_pose_from_cords(data_pair["KP2"].data[i], image_size)[0]
 
         if generated_img2 is None:
             make_vis([input_P1, input_BP1, input_P2, input_BP2, input_p2_mask, fake_p1], i)
