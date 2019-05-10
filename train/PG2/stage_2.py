@@ -38,6 +38,7 @@ def get_trainer(option, device):
         "data/market/test/pose_map_image/",
         "data/market/test/pose_mask_image/",
         option.test_pair_path,
+        "data/market/annotation-test.csv",
         random_select=True,
         random_select_size=5
     )
@@ -213,6 +214,7 @@ def get_data_loader(opt):
         "data/market/train/pose_map_image/",
         "data/market/train/pose_mask_image/",
         opt.train_pair_path,
+        "data/market/annotation-train.csv",
         random_select=True
     )
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8, pin_memory=True, drop_last=True)

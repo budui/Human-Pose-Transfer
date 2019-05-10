@@ -66,6 +66,7 @@ def get_data_loader(opt):
         "data/market/test/pose_map_image/",
         "data/market/test/pose_mask_image/",
         opt.pair_path,
+        "data/market/annotation-test.csv",
         random_select=False
     )
     print("load test dataset: {} pairs".format(len(image_dataset)))

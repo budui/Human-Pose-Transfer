@@ -1,4 +1,4 @@
-import csv
+import csv, json
 import os
 import numpy
 
@@ -14,7 +14,7 @@ DEFAULT_TRANS = transforms.Compose([
 
 
 class BoneDataset(Dataset):
-    def __init__(self, image_folder, bone_folder, mask_folder, pair_list_path,
+    def __init__(self, image_folder, bone_folder, mask_folder, pair_list_path, annotations_file_path,
                  random_select=True, random_select_size=4000, use_flip=True,
                  loader=default_loader, transform=DEFAULT_TRANS, only_path=False):
 
@@ -25,6 +25,7 @@ class BoneDataset(Dataset):
         self.use_flip = use_flip
 
         self.size, self.pairs = self.load_pair_list(pair_list_path)
+        self.key_points = self.load_key_points(annotations_file_path)
 
         self.transform = transform
         self.loader = loader
@@ -47,6 +48,22 @@ class BoneDataset(Dataset):
             next(f_csv)
             pair_list = [tuple(item) for item in f_csv]
             return len(pair_list), pair_list
+
+    @staticmethod
+    def load_key_points(annotations_file_path):
+        with open(annotations_file_path, "r") as f:
+            f_csv = csv.reader(f, delimiter=":")
+            next(f_csv)
+            annotations_data = {}
+            for row in f_csv:
+                img_name = row[0]
+                key_points_y = json.loads(row[1])
+                key_points_x = json.loads(row[2])
+                annotations_data[img_name] = torch.cat([
+                    torch.Tensor(key_points_y).unsqueeze_(-1),
+                    torch.Tensor(key_points_x).unsqueeze_(-1)
+                ], dim=-1)
+            return annotations_data
 
     def load_bone_data(self, img_name, flip=False):
         bone_img = numpy.load(os.path.join(self.bone_folder, img_name + ".npy"))
@@ -100,8 +117,10 @@ class BoneDataset(Dataset):
         mask_p1 = self.load_mask_data(img_p1_name, flip)
         mask_p2 = self.load_mask_data(img_p2_name, flip)
 
-        return {'P1': img_p1, 'BP1': bone_p1, 'P1_path': img_p1_name, 'MP1': mask_p1,
-                'P2': img_p2, 'BP2': bone_p2, 'P2_path': img_p2_name, 'MP2': mask_p2}
+        return {'P1': img_p1, 'BP1': bone_p1, 'P1_path': img_p1_name,
+                'MP1': mask_p1, 'KP1': self.key_points[img_p1_name],
+                'P2': img_p2, 'BP2': bone_p2, 'P2_path': img_p2_name,
+                'MP2': mask_p2, 'KP2': self.key_points[img_p2_name]}
 
     def __len__(self):
         return self.random_select_size if self.random_select else self.size
@@ -109,11 +128,15 @@ class BoneDataset(Dataset):
 
 if __name__ == '__main__':
     image_dataset = BoneDataset(
-        "../DataSet/Market-1501-v15.09.15/bounding_box_train/",
+        "../dataset/Market-1501-v15.09.15/bounding_box_train/",
         "data/market/train/pose_map_image/",
         "data/market/train/pose_mask_image/",
-        "data/market-pairs-train.csv",
+        "data/market/pairs-train.csv",
+        "data/market/annotation-train.csv",
         random_select=True
     )
     print(len(image_dataset))
-    print(image_dataset[0]["P1"][0][0])
+    first_pair = image_dataset[0]
+    print(first_pair["P1"][0][0])
+    print(first_pair["KP1"])
+    print(first_pair["P1_path"])
