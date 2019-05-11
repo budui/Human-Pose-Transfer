@@ -6,6 +6,7 @@ import util.util as util
 
 # draw pose img
 # ref https://github.com/CMU-Perceptual-Computing-Lab/openpose/raw/master/doc/media/keypoints_pose_18.png
+
 LIMB_SEQ = [[1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9],
             [9, 10], [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16],
             [0, 15], [15, 17], [2, 16], [5, 17]]
@@ -100,6 +101,30 @@ def draw_pose_from_cords_and_visibility(pose_joints, visibility, img_size, radiu
     return colors
 
 
+def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
+    colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
+    mask = np.zeros(shape=img_size, dtype=bool)
+
+    if draw_joints:
+        for f, t in LIMB_SEQ:
+            from_missing = pose_joints[f][0] == MISSING_VALUE or pose_joints[f][1] == MISSING_VALUE
+            to_missing = pose_joints[t][0] == MISSING_VALUE or pose_joints[t][1] == MISSING_VALUE
+            if from_missing or to_missing:
+                continue
+            yy, xx, val = line_aa(pose_joints[f][0], pose_joints[f][1], pose_joints[t][0], pose_joints[t][1])
+            colors[yy, xx] = np.expand_dims(val, 1) * 255
+            mask[yy, xx] = True
+
+    for i, joint in enumerate(pose_joints):
+        if pose_joints[i][0] == MISSING_VALUE or pose_joints[i][1] == MISSING_VALUE:
+            continue
+        yy, xx = circle(joint[0], joint[1], radius=radius, shape=img_size)
+        colors[yy, xx] = COLORS[i]
+        mask[yy, xx] = True
+
+    return colors, mask
+
+
 def _test():
     pose = torch.ones([18, 3])
     pose = pose * 0.5
@@ -108,3 +133,4 @@ def _test():
 
 if __name__ == '__main__':
     _test()
+

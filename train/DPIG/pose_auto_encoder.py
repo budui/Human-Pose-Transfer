@@ -5,14 +5,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
-from ignite.handlers import ModelCheckpoint, Timer
 from ignite.metrics import RunningAverage
 
 from dataset.key_point_dataset import KeyPointDataset
 from models.DPIG import PoseDecoder, PoseEncoder
-from util.vis.pose import show_with_visibility as show_pose
+from util.pose import show_with_visibility as show_pose
 from train.common_handler import warp_common_handler
 
 

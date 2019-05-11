@@ -13,7 +13,7 @@ from ignite.metrics import RunningAverage
 
 import dataset.bone_dataset as dataset
 import models.PG2 as PG2
-from util.v import get_current_visuals_
+from util.util import get_current_visuals
 from loss.mask_l1 import MaskL1Loss
 from util.image_pool import ImagePool
 from train.common_handler import warp_common_handler
@@ -120,7 +120,7 @@ def get_trainer(option, device):
 
         if engine.state.iteration % 100 == 0:
             path = os.path.join(output_dir, VAL_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
-            get_current_visuals_(path, batch, [generator_1_img, diff_img, generated_img])
+            get_current_visuals(path, batch, [generator_1_img, diff_img, generated_img])
 
         return {
             "pred": {
@@ -191,7 +191,7 @@ def get_trainer(option, device):
         diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
         img_g2 = diff_map + img_g1
         path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.epoch))
-        get_current_visuals_(path, val_data_pair, [img_g1,diff_map,img_g2])
+        get_current_visuals(path, val_data_pair, [img_g1, diff_map, img_g2])
 
     return trainer
 

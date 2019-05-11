@@ -1,7 +1,7 @@
 from PIL import Image
 import numpy as np
 
-from skimage.draw import circle, line_aa, polygon
+from util import pose
 
 
 def tensor2image(image_tensor, imtype=np.uint8):
@@ -11,70 +11,34 @@ def tensor2image(image_tensor, imtype=np.uint8):
     image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
     return image_numpy.astype(imtype)
 
-
-# draw pose img
-LIMB_SEQ = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9],
-           [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16],
-           [0,15], [15,17], [2,16], [5,17]]
-
-COLORS = [[255, 0, 0], [255, 85, 0], [255, 170, 0], [255, 255, 0], [170, 255, 0], [85, 255, 0], [0, 255, 0],
-          [0, 255, 85], [0, 255, 170], [0, 255, 255], [0, 170, 255], [0, 85, 255], [0, 0, 255], [85, 0, 255],
-          [170, 0, 255], [255, 0, 255], [255, 0, 170], [255, 0, 85]]
-
-
-LABELS = ['nose', 'neck', 'Rsho', 'Relb', 'Rwri', 'Lsho', 'Lelb', 'Lwri',
-               'Rhip', 'Rkne', 'Rank', 'Lhip', 'Lkne', 'Lank', 'Leye', 'Reye', 'Lear', 'Rear']
-
-MISSING_VALUE = -1
-
-
-def map_to_cord(pose_map, threshold=0.1):
-    all_peaks = [[] for _ in range(18)]
-    pose_map = pose_map[..., :18]
-
-    y, x, z = np.where(np.logical_and(pose_map == pose_map.max(axis = (0, 1)),
-                                     pose_map > threshold))
-    for x_i, y_i, z_i in zip(x, y, z):
-        all_peaks[z_i].append([x_i, y_i])
-
-    x_values = []
-    y_values = []
-
-    for i in range(18):
-        if len(all_peaks[i]) != 0:
-            x_values.append(all_peaks[i][0][0])
-            y_values.append(all_peaks[i][0][1])
-        else:
-            x_values.append(MISSING_VALUE)
-            y_values.append(MISSING_VALUE)
-
-    return np.concatenate([np.expand_dims(y_values, -1), np.expand_dims(x_values, -1)], axis=1)
-
-
-# draw pose from map
-def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
-    colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
-    mask = np.zeros(shape=img_size, dtype=bool)
-
-    if draw_joints:
-        for f, t in LIMB_SEQ:
-            from_missing = pose_joints[f][0] == MISSING_VALUE or pose_joints[f][1] == MISSING_VALUE
-            to_missing = pose_joints[t][0] == MISSING_VALUE or pose_joints[t][1] == MISSING_VALUE
-            if from_missing or to_missing:
-                continue
-            yy, xx, val = line_aa(pose_joints[f][0], pose_joints[f][1], pose_joints[t][0], pose_joints[t][1])
-            colors[yy, xx] = np.expand_dims(val, 1) * 255
-            mask[yy, xx] = True
-
-    for i, joint in enumerate(pose_joints):
-        if pose_joints[i][0] == MISSING_VALUE or pose_joints[i][1] == MISSING_VALUE:
-            continue
-        yy, xx = circle(joint[0], joint[1], radius=radius, shape=img_size)
-        colors[yy, xx] = COLORS[i]
-        mask[yy, xx] = True
-
-    return colors, mask
-
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy)
     image_pil.save(image_path)
+
+
+def get_current_visuals(img_path, data_pair, new_imgs=None):
+    height, width, batch_size = data_pair["P1"].size(2), data_pair["P1"].size(3), data_pair["P1"].size(0)
+
+    image_num = batch_size if batch_size < 6 else 6
+
+    vis = np.zeros((height * image_num, width * (5 + len(new_imgs)), 3)).astype(np.uint8)
+
+    def make_vis(image_list, row_id):
+        for img_id, img in enumerate(image_list):
+            vis[height * row_id:height * (1 + row_id), width * img_id:width * (img_id + 1), :] = img
+
+    for i in range(image_num):
+        new_img_list = []
+        if new_imgs is not None:
+            for nimg in new_imgs:
+                new_img_list.append(tensor2image(nimg.data[i]))
+        input_P1 = tensor2image(data_pair["P1"].data[i])
+        image_size = input_P1.shape[:2]
+        input_P2 = tensor2image(data_pair["P2"].data[i])
+        input_p2_mask = tensor2image(data_pair["MP2"].data[i])
+        input_BP1 = pose.draw_pose_from_cords(data_pair["KP1"].data[i], image_size)[0]
+        input_BP2 = pose.draw_pose_from_cords(data_pair["KP2"].data[i], image_size)[0]
+
+        make_vis([input_P1, input_BP1, input_P2, input_BP2, input_p2_mask] + new_img_list, i)
+
+    save_image(vis, img_path)

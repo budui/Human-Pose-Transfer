@@ -10,7 +10,7 @@ from ignite.metrics import RunningAverage
 
 from dataset.key_point_dataset import KeyPointDataset
 from models.DPIG import PoseDecoder, PoseEncoder
-from util.vis.pose import show_with_visibility as show_pose
+from util.pose import show_with_visibility as show_pose
 
 IMG_FNAME = 'iter_{iter}.jpg'
 
