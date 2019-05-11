@@ -30,28 +30,27 @@ def make_handle_handle_exception(checkpoint_handler, save_networks, create_plots
 
 
 def make_handle_create_plots(output_dir, logs_path, plot_path):
+    try:
+        import matplotlib as mpl
+        mpl.use('agg')
+
+        import numpy as np
+        import pandas as pd
+        import matplotlib.pyplot as plt
+
+    except ImportError:
+        warnings.warn('Loss plots will not be generated -- pandas or matplotlib not found')
+
     def create_plots(engine):
-        try:
-            import matplotlib as mpl
-            mpl.use('agg')
+        df = pd.read_csv(os.path.join(output_dir, logs_path), delimiter='\t')
+        # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
+        _ = df.plot(subplots=True, figsize=(10, 10))
+        _ = plt.xlabel('Iteration number')
+        fig = plt.gcf()
+        path = os.path.join(output_dir, plot_path)
 
-            import numpy as np
-            import pandas as pd
-            import matplotlib.pyplot as plt
-
-        except ImportError:
-            warnings.warn('Loss plots will not be generated -- pandas or matplotlib not found')
-
-        else:
-            df = pd.read_csv(os.path.join(output_dir, logs_path), delimiter='\t')
-            # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
-            _ = df.plot(subplots=True, figsize=(10, 10))
-            _ = plt.xlabel('Iteration number')
-            fig = plt.gcf()
-            path = os.path.join(output_dir, plot_path)
-
-            fig.savefig(path)
-            fig.clear()
+        fig.savefig(path)
+        fig.clear()
 
     return create_plots
 
