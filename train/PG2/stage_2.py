@@ -49,8 +49,8 @@ def get_trainer(option, device):
 
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_1.load_state_dict(torch.load(option.G1_path))
-    generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
-    discriminator = PG2.NDiscriminator(in_channels=6)
+    generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=0)
+    discriminator = PG2.DiscriminatorDC(in_channels=6)
     generator_1.to(device)
     generator_2.to(device)
     discriminator.to(device)

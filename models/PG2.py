@@ -212,7 +212,8 @@ def weights_init(m):
         nn.init.constant_(m.bias.data, 0)
 
 
-# TODO 这部分结构不知道怎么设计，目前靠调参数使得最后输出为1，但是作者的代码是加入FC的，多试试。
+# Inspired by tensorflow code of PG2.
+# TODO: add fc that appear in tf-version code.
 class Discriminator(nn.Module):
     def __init__(self, in_channels=6, base_channels=64):
         super(Discriminator, self).__init__()
@@ -247,13 +248,17 @@ class Discriminator(nn.Module):
         return self.sigmoid(self.fc(x))
 
 
-class NDiscriminator(nn.Module):
+# adopt the same network architecture as DCGAN
+# except the size of the input convolution layer
+# due to different image resolutions.
+class DiscriminatorDC(nn.Module):
     def __init__(self, in_channels=6, base_channels=64):
-        super(NDiscriminator, self).__init__()
+        super(DiscriminatorDC, self).__init__()
         nf = base_channels
         nc = in_channels
         self.main = nn.Sequential(
             # input is (nc) x 128 x 64
+            # adopt stride
             nn.Conv2d(in_channels=nc, out_channels=nf, kernel_size=4, stride=(4, 2), padding=1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
 
