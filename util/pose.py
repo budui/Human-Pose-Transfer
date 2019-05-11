@@ -68,6 +68,8 @@ def draw_pose_from_cords_and_visibility(pose_joints, visibility, img_size, radiu
 
 
 def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
+    if isinstance(pose_joints, torch.Tensor):
+        pose_joints = pose_joints.cpu().numpy().astype(np.int)
     colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
     mask = np.zeros(shape=img_size, dtype=bool)
 
