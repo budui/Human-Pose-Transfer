@@ -48,7 +48,7 @@ def get_trainer(option, device):
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_1.load_state_dict(torch.load(option.G1_path))
     generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
-    discriminator = PG2.Discriminator(in_channels=6)
+    discriminator = PG2.Discriminator(in_channels=3)
     generator_1.to(device)
     generator_2.to(device)
     discriminator.to(device)
@@ -65,8 +65,6 @@ def get_trainer(option, device):
 
     real_labels = torch.ones((batch_size, 1), device=device)
     fake_labels = torch.zeros((batch_size, 1), device=device)
-
-    fake_pair_img_pool = ImagePool(50)
 
     def step(engine, batch):
         _move_data_pair_to(device, batch)
@@ -85,7 +83,7 @@ def get_trainer(option, device):
         optimizer_generator_2.zero_grad()
 
         # BCE loss
-        pred_disc_fake_1 = discriminator(torch.cat([condition_img, generated_img], dim=1))
+        pred_disc_fake_1 = discriminator(generated_img)
         generator_2_bce_loss = bce_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
         generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
@@ -98,17 +96,24 @@ def get_trainer(option, device):
         # -----------------------------------------------------------
         # (2) Update D network: minimize L_bce
         optimizer_discriminator.zero_grad()
-        # real loss
-        real_pair_img = torch.cat([condition_img, target_img], dim=1)
-        pred_disc_real_2 = discriminator(real_pair_img)
+        # real loss 1
+        pred_disc_real_2 = discriminator(target_img)
         discriminator_real_loss = bce_loss(pred_disc_real_2, real_labels)
-        # fake loss
-        fake_pair_img = torch.cat([condition_img, generated_img], dim=1)
-        #fake_pair_img = fake_pair_img_pool.query(torch.cat([condition_img, generated_img], dim=1).data)
-        pred_disc_fake_2 = discriminator(fake_pair_img.detach())
+        # fake loss 1
+        pred_disc_fake_2 = discriminator(generated_img.detach())
         discriminator_fake_loss = bce_loss(pred_disc_fake_2, fake_labels)
-        # total loss
-        discriminator_loss = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+        # total loss 1
+        discriminator_loss_1 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+
+        # real loss 2
+        pred_disc_real_2 = discriminator(target_img)
+        discriminator_real_loss = bce_loss(pred_disc_real_2, real_labels)
+        # fake loss 2
+        pred_disc_fake_2 = discriminator(condition_img)
+        discriminator_fake_loss = bce_loss(pred_disc_fake_2, fake_labels)
+        discriminator_loss_2 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+
+        discriminator_loss = (discriminator_loss_1 + discriminator_loss_2)*0.5
         discriminator_loss.backward()
         # gradient update
         optimizer_discriminator.step()
