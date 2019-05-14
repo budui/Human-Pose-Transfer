@@ -5,7 +5,7 @@ from ignite.handlers import ModelCheckpoint, Timer
 from ignite.engine import Engine, Events
 from ignite.contrib.handlers import ProgressBar
 
-CKPT_PREFIX = 'networks'
+CKPT_PREFIX = 'train/networks'
 LOGS_FNAME = 'logs.csv'
 PLOT_FNAME = 'plot.svg'
 
@@ -42,15 +42,16 @@ def make_handle_create_plots(output_dir, logs_path, plot_path):
         warnings.warn('Loss plots will not be generated -- pandas or matplotlib not found')
 
     def create_plots(engine):
-        df = pd.read_csv(os.path.join(output_dir, logs_path), delimiter='\t')
-        # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
-        _ = df.plot(subplots=True, figsize=(10, 10))
-        _ = plt.xlabel('Iteration number')
-        fig = plt.gcf()
-        path = os.path.join(output_dir, plot_path)
+        if engine.state.iteration % 200 == 0:
+            df = pd.read_csv(os.path.join(output_dir, logs_path), delimiter='\t')
+            # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
+            _ = df.plot(subplots=True, figsize=(10, 10))
+            _ = plt.xlabel('Iteration number')
+            fig = plt.gcf()
+            path = os.path.join(output_dir, plot_path)
 
-        fig.savefig(path)
-        fig.clear()
+            fig.savefig(path)
+            fig.clear()
 
     return create_plots
 
@@ -112,8 +113,8 @@ def warp_common_handler(engine, option, networks_to_save, monitoring_metrics, ad
         require_empty=False, create_dir=True, save_as_state_dict=True
     )
 
-    engine.add_event_handler(Events.EPOCH_COMPLETED, checkpoint_handler, to_save=networks_to_save)
-    engine.add_event_handler(Events.EPOCH_COMPLETED, create_plots)
+    engine.add_event_handler(Events.ITERATION_COMPLETED, checkpoint_handler, to_save=networks_to_save)
+    engine.add_event_handler(Events.ITERATION_COMPLETED, create_plots)
     engine.add_event_handler(
         Events.EXCEPTION_RAISED,
         make_handle_handle_exception(checkpoint_handler, networks_to_save, create_plots)

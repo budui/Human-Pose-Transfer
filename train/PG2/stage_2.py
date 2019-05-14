@@ -18,8 +18,8 @@ from loss.mask_l1 import MaskL1Loss
 from util.image_pool import ImagePool
 from train.common_handler import warp_common_handler
 
-FAKE_IMG_FNAME = 'epoch_{:02d}_{:05d}.png'
-VAL_IMG_FNAME = 'train_img/epoch_{:02d}_{:05d}.png'
+FAKE_IMG_FNAME = 'epoch_{:02d}_{:07d}.png'
+VAL_IMG_FNAME = 'train/epoch_{:02d}_{:07d}.png'
 
 
 def _move_data_pair_to(device, data_pair):
@@ -48,7 +48,7 @@ def get_trainer(option, device):
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_1.load_state_dict(torch.load(option.G1_path))
     generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
-    discriminator = PG2.DiscriminatorDC(in_channels=6)
+    discriminator = PG2.Discriminator(in_channels=6)
     generator_1.to(device)
     generator_2.to(device)
     discriminator.to(device)
