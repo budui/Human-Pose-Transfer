@@ -15,14 +15,15 @@ DEFAULT_TRANS = transforms.Compose([
 
 class BoneDataset(Dataset):
     def __init__(self, image_folder, bone_folder, mask_folder, pair_list_path, annotations_file_path,
-                 random_select=True, random_select_size=4000, use_flip=True,
-                 loader=default_loader, transform=DEFAULT_TRANS, only_path=False):
+                flip_rate=0.0, loader=default_loader,
+                 transform=DEFAULT_TRANS, only_path=False):
 
         self.image_folder = image_folder
         self.bone_folder = bone_folder
         self.mask_folder = mask_folder
 
-        self.use_flip = use_flip
+        self.flip_rate = flip_rate
+        self.use_flip = self.flip_rate > 0.0
 
         self.size, self.pairs = self.load_pair_list(pair_list_path)
         self.key_points = self.load_key_points(annotations_file_path)
@@ -32,13 +33,8 @@ class BoneDataset(Dataset):
 
         self.only_path = only_path
 
-        self.random_select = random_select
-        self.random_select_size = random_select_size
-
     def __repr__(self):
-        return "<BoneDataset size: {} real_size: {} random_select: {}>".format(
-            len(self), self.size, self.random_select
-        )
+        return "<BoneDataset size: {} real_size: {}>".format(len(self), self.size)
 
     @staticmethod
     def load_pair_list(pair_list_path):
@@ -95,15 +91,10 @@ class BoneDataset(Dataset):
         return img
 
     def __getitem__(self, input_idx):
-        if self.random_select:
-            index = torch.randint(0, self.size - 1, (1,)).item()
-        else:
-            index = input_idx
-
-        img_p1_name, img_p2_name = self.pairs[index]
+        img_p1_name, img_p2_name = self.pairs[input_idx]
 
         if self.use_flip:
-            flip = torch.randint(0, self.size - 1, (1,)).item() > (self.size - 1)/2
+            flip = torch.rand(1).item() < self.flip_rate
         else:
             flip = False
 
@@ -123,7 +114,7 @@ class BoneDataset(Dataset):
                 'MP2': mask_p2, 'KP2': self.key_points[img_p2_name]}
 
     def __len__(self):
-        return self.random_select_size if self.random_select else self.size
+        return self.size
 
 
 if __name__ == '__main__':

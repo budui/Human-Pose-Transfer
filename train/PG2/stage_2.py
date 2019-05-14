@@ -39,8 +39,6 @@ def get_trainer(option, device):
         "data/market/test/pose_mask_image/",
         option.test_pair_path,
         "data/market/annotation-test.csv",
-        random_select=True,
-        random_select_size=5
     )
 
     val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1)
@@ -49,7 +47,7 @@ def get_trainer(option, device):
 
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_1.load_state_dict(torch.load(option.G1_path))
-    generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=0)
+    generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
     discriminator = PG2.DiscriminatorDC(in_channels=6)
     generator_1.to(device)
     generator_2.to(device)
@@ -190,6 +188,7 @@ def get_trainer(option, device):
         img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
         diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
         img_g2 = diff_map + img_g1
+        img_g2.clamp_(-1, 1)
         path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.epoch))
         get_current_visuals(path, val_data_pair, [img_g1, diff_map, img_g2])
 
@@ -215,7 +214,11 @@ def get_data_loader(opt):
         "data/market/train/pose_mask_image/",
         opt.train_pair_path,
         "data/market/annotation-train.csv",
-        random_select=True
+        flip_rate=0.5,
     )
-    image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8, pin_memory=True, drop_last=True)
+    print(image_dataset)
+    image_loader = DataLoader(image_dataset, batch_size=opt.batch_size,
+                              num_workers=8, pin_memory=True,
+                              drop_last=True, shuffle=True
+                              )
     return image_loader

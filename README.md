@@ -86,7 +86,7 @@ docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm tensorflow/t
 # now in docker:
 $ pip install scikit-image tqdm 
 $ python evaluate/getMetrics_market.py
-``` 
+```
 
 
 
