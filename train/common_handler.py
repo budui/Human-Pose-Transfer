@@ -6,7 +6,7 @@ from ignite.engine import Engine, Events
 from ignite.contrib.handlers import ProgressBar
 
 CKPT_PREFIX = 'networks'
-LOGS_FNAME = 'logs.tsv'
+LOGS_FNAME = 'logs.csv'
 PLOT_FNAME = 'plot.svg'
 
 

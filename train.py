@@ -7,7 +7,8 @@ import torch.backends.cudnn as cudnn
 
 IMPLEMENTED_TRAIN_ENGINE = [
     "DPIG-1-Pose",
-    "PG2-2"
+    "PG2-2",
+    "PG2-1"
 ]
 
 
@@ -16,6 +17,8 @@ def select_train(name):
         from train.DPIG import pose_auto_encoder as train
     elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
         from train.PG2 import stage_2 as train
+    elif name == IMPLEMENTED_TRAIN_ENGINE[2]:
+        from train.PG2 import stage_1 as train
     else:
         raise NotImplementedError("You have not implement {}".format(name))
     return train
@@ -55,7 +58,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="ckp/")
     parser.add_argument("--print_freq", type=int, default=100, help="freq of print log message, "
                                                                     "default is every 100 iterations")
-    parser.add_argument("--save_interval", default=3, type=int, help="models will be saved to disk "
+    parser.add_argument("--save_interval", default=1, type=int, help="models will be saved to disk "
                                                                      "every save_interval calls to the handler.")
     parser.add_argument("--n_saved", default=10, type=int, help="Number of models that should be kept on disk. "
                                                                 "Older files will be removed.")

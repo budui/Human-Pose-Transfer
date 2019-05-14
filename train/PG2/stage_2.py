@@ -18,8 +18,8 @@ from loss.mask_l1 import MaskL1Loss
 from util.image_pool import ImagePool
 from train.common_handler import warp_common_handler
 
-FAKE_IMG_FNAME = 'epoch_{:04d}.png'
-VAL_IMG_FNAME = 'train_img/epoch_{:04d}_{:04d}.png'
+FAKE_IMG_FNAME = 'epoch_{:02d}_{:05d}.png'
+VAL_IMG_FNAME = 'train_img/epoch_{:02d}_{:05d}.png'
 
 
 def _move_data_pair_to(device, data_pair):
@@ -183,14 +183,15 @@ def get_trainer(option, device):
         [FAKE_IMG_FNAME, VAL_IMG_FNAME]
     )
 
-    @trainer.on(Events.EPOCH_COMPLETED)
+    @trainer.on(Events.ITERATION_COMPLETED)
     def save_example(engine):
-        img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
-        diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
-        img_g2 = diff_map + img_g1
-        img_g2.clamp_(-1, 1)
-        path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.epoch))
-        get_current_visuals(path, val_data_pair, [img_g1, diff_map, img_g2])
+        if (engine.state.iteration - 1) % option.print_freq == 0:
+            img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
+            diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
+            img_g2 = diff_map + img_g1
+            img_g2.clamp_(-1, 1)
+            path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
+            get_current_visuals(path, val_data_pair, [img_g1, diff_map, img_g2])
 
     return trainer
 
