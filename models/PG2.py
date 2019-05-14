@@ -247,6 +247,43 @@ class Discriminator(nn.Module):
         x = x.view(-1, 8*4*8*self.base_channels)
         return self.sigmoid(self.fc(x))
 
+# Inspired by tensorflow code of PG2.
+# TODO: add fc that appear in tf-version code.
+class DiscriminatorTriplet(nn.Module):
+    def __init__(self, in_channels=9, base_channels=64):
+        super(DiscriminatorTriplet, self).__init__()
+        self.base_channels = base_channels
+        kernel_size = 5
+        padding = 2
+        stride = 2
+        self.main = nn.Sequential(
+            nn.Conv2d(in_channels, base_channels, kernel_size, stride, padding, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Conv2d(base_channels, base_channels * 2, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(base_channels * 2),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Conv2d(base_channels * 2, base_channels * 4, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(base_channels * 4),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Conv2d(base_channels * 4, base_channels * 8, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(base_channels * 8),
+            nn.LeakyReLU(0.2, inplace=True),
+        )
+        self.fc = nn.Linear(8*4*8*base_channels, 3)
+        self.sigmoid = nn.Sigmoid()
+
+        self.main.apply(weights_init)
+
+    def forward(self, x):
+        batch_size = x.size(0)
+        x = self.main(x)
+        x = x.view(batch_size, -1)
+        return self.sigmoid(self.fc(x))
+
+
 
 # adopt the same network architecture as DCGAN
 # except the size of the input convolution layer
