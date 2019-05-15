@@ -119,17 +119,27 @@ class BoneDataset(Dataset):
         return self.size
 
 
-if __name__ == '__main__':
+def _test():
     image_dataset = BoneDataset(
-        "../dataset/Market-1501-v15.09.15/bounding_box_train/",
+        os.path.join("", "bounding_box_train/"),
         "data/market/train/pose_map_image/",
         "data/market/train/pose_mask_image/",
         "data/market/pairs-train.csv",
         "data/market/annotation-train.csv",
-        random_select=True
+        flip_rate=0.5,
+        only_path=True
     )
-    print(len(image_dataset))
-    first_pair = image_dataset[0]
-    print(first_pair["P1"][0][0])
-    print(first_pair["KP1"])
-    print(first_pair["P1_path"])
+
+    image_loader = torch.utils.data.DataLoader(image_dataset, batch_size=32,
+                              num_workers=8, pin_memory=True,
+                              sampler=torch.utils.data.RandomSampler(image_dataset, replacement=True)
+                              )
+    print(len(image_loader), image_dataset)
+    iter_results = set()
+    for data in image_loader:
+        for i in range(len(data["P1_path"])):
+            iter_results.add((data["P1_path"][i], data["P2_path"][i]))
+    print(len(iter_results))
+
+if __name__ == '__main__':
+    _test()
