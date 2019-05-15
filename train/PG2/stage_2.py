@@ -41,7 +41,7 @@ def get_trainer(option, device):
         "data/market/annotation-test.csv",
     )
 
-    val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1)
+    val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1, shuffle=True)
     val_data_pair = next(iter(val_image_loader))
     _move_data_pair_to(device, val_data_pair)
 
@@ -194,7 +194,6 @@ def get_trainer(option, device):
             img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
             diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
             img_g2 = diff_map + img_g1
-            img_g2.clamp_(-1, 1)
             path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
             get_current_visuals(path, val_data_pair, [img_g1, diff_map, img_g2])
 
