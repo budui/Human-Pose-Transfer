@@ -73,6 +73,7 @@ data
 2. use `python3 test.py --name <TestName> -h` to see test option for `TestName`.
 3. use `python3 test.py --name <TestName>` to test.
 
+for example: `python test.py --name PG2-Generate --market1501 ../../data/Market-1501-v15.09.15/ --gpu_id 3 --output_dir generated --G2_path ./checkpoints/SUBMIT_VERSION/train/networks_G2_16000.pth  --G1_path ./data/market/models/PG2/G1.pth  --pair_path ./data/market/pairs-test.csv`
 
 ## Eval
 
@@ -80,6 +81,19 @@ For fair comparisons, I just copy&use the same evaluation codes in previous work
 which used some outdated frameworks, like `Tensorflow 1.4.1`(python3)
 
 I recommend using docker to evaluate the results:
+
+1. build docker image with `evaluate/Dockerfile`
+2. run evaluate script
+
+```bash
+$ cd evaluate
+$ docker build -t hpt_evaluate . 
+$  # For user in China, you can build docker image like this:
+$ docker build -t hpt_evaluate . --build-arg PIP_PYPI="https://pypi.tuna.tsinghua.edu.cn/simple"
+$ docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm hpt_evaluate:latest python evaluate/getMetrics_market.py
+```
+
+Or evaluate in docker:
 
 ```
 docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm tensorflow/tensorflow:1.4.1-gpu-py3 bash

@@ -119,7 +119,7 @@ def test(generated_images_dir, annotations_file_test):
 
 
 if __name__ == "__main__":
-    generated_images_dir = 'generate'
+    generated_images_dir = 'generated'
     annotations_file_test = 'data/market/annotation-test.csv'
 
     test(generated_images_dir, annotations_file_test)
