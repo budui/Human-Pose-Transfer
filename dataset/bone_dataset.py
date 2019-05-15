@@ -34,7 +34,9 @@ class BoneDataset(Dataset):
         self.only_path = only_path
 
     def __repr__(self):
-        return "<BoneDataset size: {} real_size: {}>".format(len(self), self.size)
+        return "<BoneDataset size: {} flip_rate: {}>".format(
+            len(self), self.flip_rate
+        )
 
     @staticmethod
     def load_pair_list(pair_list_path):
