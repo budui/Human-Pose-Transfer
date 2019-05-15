@@ -15,6 +15,7 @@ import dataset.bone_dataset as dataset
 import models.PG2 as PG2
 from util.util import get_current_visuals
 from loss.mask_l1 import MaskL1Loss
+from loss.perceptual_loss import PerceptualLoss
 from util.image_pool import ImagePool
 from train.common_handler import warp_common_handler
 
@@ -58,8 +59,11 @@ def get_trainer(option, device):
 
     bce_loss = nn.BCELoss().to(device)
     mask_l1_loss = MaskL1Loss().to(device)
+    perceptual_loss = PerceptualLoss(device=device).to(device)
 
     mask_l1_loss_lambda = option.mask_l1_loss_lambda
+    perceptual_loss_lambda = option.perceptual_loss_lambda
+
     batch_size = option.batch_size
     output_dir = option.output_dir
 
@@ -87,8 +91,12 @@ def get_trainer(option, device):
         generator_2_bce_loss = bce_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
         generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
+        # Perceptual loss
+        generator_2_perceptual_loss = perceptual_loss(generated_img, target_img)
         # total loss
-        generator_2_loss = generator_2_bce_loss + mask_l1_loss_lambda * generator_2_mask_l1_loss
+        generator_2_loss = generator_2_bce_loss + \
+                           mask_l1_loss_lambda * generator_2_mask_l1_loss + \
+                           perceptual_loss_lambda * generator_2_perceptual_loss
         # gradient update
         generator_2_loss.backward()
         optimizer_generator_2.step()
@@ -133,6 +141,7 @@ def get_trainer(option, device):
             },
             "loss": {
                 "G_bce": generator_2_bce_loss.item(),
+                "G_per": generator_2_perceptual_loss.item(),
                 "G_l1": generator_2_mask_l1_loss.item(),
                 "G": generator_2_loss.item(),
                 "D_real": discriminator_real_loss.item(),
@@ -154,6 +163,7 @@ def get_trainer(option, device):
     RunningAverage(output_transform=lambda x: x["loss"]['G']).attach(trainer, 'loss_G')
     RunningAverage(output_transform=lambda x: x["loss"]['G_bce']).attach(trainer, 'loss_G_bce')
     RunningAverage(output_transform=lambda x: x["loss"]['G_l1']).attach(trainer, 'loss_G_l1')
+    RunningAverage(output_transform=lambda x: x["loss"]['G_per']).attach(trainer, 'loss_G_per')
 
     RunningAverage(output_transform=lambda x: x["loss"]['D']).attach(trainer, 'loss_D')
     RunningAverage(output_transform=lambda x: x["loss"]['D_real']).attach(trainer, 'loss_D_real')
@@ -162,17 +172,18 @@ def get_trainer(option, device):
     networks_to_save = dict(G2=generator_2, D=discriminator)
 
     def add_message(engine):
-        message = " | G_loss(all/bce/l1): {:.4f}/{:.4f}/{:.4f}".format(
+        message = " | G(a/b/p/l): {:.3f}/{:.3f}/{:.3f}/{:.3f}".format(
             engine.state.metrics["loss_G"],
             engine.state.metrics["loss_G_bce"],
+            engine.state.metrics["loss_G_per"],
             engine.state.metrics["loss_G_l1"]
         )
-        message += " | D_loss(all/fake/real): {:.4f}/{:.4f}/{:.4f}".format(
+        message += " | D(a/f/r): {:.3f}/{:.3f}/{:.3f}".format(
             engine.state.metrics["loss_D"],
             engine.state.metrics["loss_D_fake"],
             engine.state.metrics["loss_D_real"]
         )
-        message += " | Pred(G2_fake/D_fake/D_real/): {:.4f}/{:.4f}/{:.4f}".format(
+        message += " | Pred(Gf/Df/Dr/): {:.3f}/{:.3f}/{:.3f}".format(
             engine.state.metrics["pred_G_fake"],
             engine.state.metrics["pred_D_fake"],
             engine.state.metrics["pred_D_real"]
@@ -206,6 +217,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
+    parser.add_argument('--perceptual_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
     parser.add_argument('--train_pair_path', type=str, default="data/market/pairs-train.csv")
