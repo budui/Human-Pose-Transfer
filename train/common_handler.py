@@ -11,6 +11,7 @@ CKPT_PREFIX = 'models/networks'
 LOGS_FNAME = 'logs.csv'
 PLOT_FNAME = 'plot.svg'
 DATA_JSON = 'data.json'
+OPTION_JSON = "opt.json"
 
 
 def make_handle_handle_exception(checkpoint_handler, save_networks, create_plots=None):
@@ -73,6 +74,12 @@ def make_move_html(output_dir):
     def move_html(engine):
         copyfile("./util/show_result.html", os.path.join(output_dir, "index.html"))
     return move_html
+
+def make_create_option_data(option):
+    def create_option_data(engine):
+        with open(os.path.join(option.output_dir, OPTION_JSON), "w") as data_f:
+            json.dump(vars(option),data_f)
+    return create_option_data
 
 def make_handle_print_times(timer, pbar):
     def print_times(engine):
@@ -138,11 +145,15 @@ def warp_common_handler(engine, option, networks_to_save, monitoring_metrics, ad
     )
     engine.add_event_handler(
         Events.STARTED,
+        make_handle_make_dirs(option.output_dir, use_folder_pathes)
+    )
+    engine.add_event_handler(
+        Events.STARTED,
         make_move_html(option.output_dir)
     )
     engine.add_event_handler(
         Events.STARTED,
-        make_handle_make_dirs(option.output_dir, use_folder_pathes)
+        make_create_option_data(option)
     )
     engine.add_event_handler(
         Events.EPOCH_COMPLETED,

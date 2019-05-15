@@ -37,10 +37,23 @@
                 show_result(data_json["iteration"], data_json["print_freq"])
                 show_train_info(data_json)
             });
+        fetch('opt.json')
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(opt_json) {
+                let info_div = document.getElementById('opt');
+                for(let dkey in opt_json){
+                    var p = document.createElement("p");
+                    p.innerText = `|\t${dkey}\t|\t${opt_json[dkey]}\t|`
+                    info_div.appendChild(p)
+                }
+            });
 	};
     </script>
 </head>
 <body>
+    <div id="opt"></div>
     <img src="plot.svg">
     <div id="info"></div>
     <div id="test_images"></div>

@@ -216,6 +216,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--g_lr', type=float, default=0.00002)
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--beta2', type=float, default=0.999)
+    parser.add_argument('--replacement', action="store_true")
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
     parser.add_argument('--perceptual_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
@@ -236,7 +237,8 @@ def get_data_loader(opt):
 
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size,
                               num_workers=8, pin_memory=True, drop_last=True,
-                              sampler=torch.utils.data.RandomSampler(image_dataset, replacement=False)
+                              sampler=torch.utils.data.RandomSampler(image_dataset,
+                                                                     replacement=opt.replacement)
                               )
     print("dataset: {} num_batches: {}".format(image_dataset, len(image_loader)))
     return image_loader
