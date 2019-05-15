@@ -1,13 +1,16 @@
 import os
 import warnings
+import json
+from shutil import copyfile
 
 from ignite.handlers import ModelCheckpoint, Timer
-from ignite.engine import Engine, Events
+from ignite.engine import Events
 from ignite.contrib.handlers import ProgressBar
 
-CKPT_PREFIX = 'train/networks'
+CKPT_PREFIX = 'models/networks'
 LOGS_FNAME = 'logs.csv'
 PLOT_FNAME = 'plot.svg'
+DATA_JSON = 'data.json'
 
 
 def make_handle_handle_exception(checkpoint_handler, save_networks, create_plots=None):
@@ -58,6 +61,7 @@ def make_handle_create_plots(output_dir, logs_path, plot_path):
 
 def make_handle_make_dirs(output_dir, fnames):
     def make_dirs(engine):
+        fnames.append(CKPT_PREFIX)
         for fn in fnames:
             save_folder = os.path.join(output_dir, os.path.dirname(fn))
             if not os.path.exists(save_folder):
@@ -65,6 +69,10 @@ def make_handle_make_dirs(output_dir, fnames):
                 os.makedirs(save_folder)
     return make_dirs
 
+def make_move_html(output_dir):
+    def move_html(engine):
+        copyfile("./util/show_result.html", os.path.join(output_dir, "index.html"))
+    return move_html
 
 def make_handle_print_times(timer, pbar):
     def print_times(engine):
@@ -80,7 +88,7 @@ def make_handle_print_times(timer, pbar):
 
 def make_handle_print_logs(output_dir, epochs, print_freq, pbar, add_message):
     def print_logs(engine):
-        if (engine.state.iteration - 1) % print_freq == 0:
+        if engine.state.iteration > 0 and engine.state.iteration % print_freq == 0:
             fname = os.path.join(output_dir, LOGS_FNAME)
             columns = sorted(engine.state.metrics.keys())
             values = [str(round(engine.state.metrics[value], 5)) for value in columns]
@@ -96,6 +104,15 @@ def make_handle_print_logs(output_dir, epochs, print_freq, pbar, add_message):
             )
             message += add_message(engine)
             pbar.log_message(message)
+
+            with open(os.path.join(output_dir, DATA_JSON), "w") as data_f:
+                json.dump({
+                        "iteration" : engine.state.iteration,
+                        "print_freq": print_freq,
+                        "epoch": engine.state.epoch
+                    },
+                    data_f
+                )
     return print_logs
 
 
@@ -118,6 +135,10 @@ def warp_common_handler(engine, option, networks_to_save, monitoring_metrics, ad
     engine.add_event_handler(
         Events.EXCEPTION_RAISED,
         make_handle_handle_exception(checkpoint_handler, networks_to_save, create_plots)
+    )
+    engine.add_event_handler(
+        Events.STARTED,
+        make_move_html(option.output_dir)
     )
     engine.add_event_handler(
         Events.STARTED,
