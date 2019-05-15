@@ -53,10 +53,10 @@ def get_tester(option, device):
 
 
 def add_new_arg_for_parser(parser, name):
-    parser.add_argument("--pair_path", type=str, default="data/market-pairs-test.csv")
+    parser.add_argument("--pair_path", type=str, default="data/market/pairs-test.csv")
     parser.add_argument('--market1501', type=str, default="../dataset/Market-1501-v15.09.15/")
     if name == "PG2-Generate":
-        parser.add_argument("--G1_path", type=str)
+        parser.add_argument("--G1_path", type=str, default="./data/market/models/PG2/G1.pth")
         parser.add_argument("--G2_path", type=str)
 
 
@@ -67,7 +67,6 @@ def get_data_loader(opt):
         "data/market/test/pose_mask_image/",
         opt.pair_path,
         "data/market/annotation-test.csv",
-        random_select=False
     )
     print("load test dataset: {} pairs".format(len(image_dataset)))
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8)
