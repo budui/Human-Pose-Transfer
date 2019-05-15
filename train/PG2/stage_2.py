@@ -41,9 +41,9 @@ def get_trainer(option, device):
         "data/market/annotation-test.csv",
     )
 
-    val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1, shuffle=True)
-    val_image_iter = iter(val_image_loader)
-
+    val_image_loader = DataLoader(val_image_dataset, batch_size=8, num_workers=1, shuffle=True)
+    val_data_pair = next(iter(val_image_loader))
+    _move_data_pair_to(device, val_data_pair)
 
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_1.load_state_dict(torch.load(option.G1_path))
@@ -190,8 +190,6 @@ def get_trainer(option, device):
 
     @trainer.on(Events.ITERATION_COMPLETED)
     def save_example(engine):
-        val_data_pair = next(val_image_iter)
-        _move_data_pair_to(device, val_data_pair)
         if engine.state.iteration > 0 and engine.state.iteration % option.print_freq == 0:
             img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
             diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
@@ -225,8 +223,8 @@ def get_data_loader(opt):
     )
 
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size,
-                              num_workers=8, pin_memory=True,
-                              sampler=torch.utils.data.RandomSampler(image_dataset, replacement=True)
+                              num_workers=8, pin_memory=True, drop_last=True,
+                              sampler=torch.utils.data.RandomSampler(image_dataset, replacement=False)
                               )
     print("dataset: {} num_batches: {}".format(image_dataset, len(image_loader)))
     return image_loader
