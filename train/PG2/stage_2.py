@@ -55,8 +55,8 @@ def get_trainer(option, device):
 
     optimizer_generator_2 = optim.Adam(generator_2.parameters(), lr=option.g_lr, betas=(option.beta1, option.beta2))
     optimizer_discriminator = optim.Adam(discriminator.parameters(), lr=option.d_lr, betas=(option.beta1, option.beta2))
-    scheduler_g = optim.lr_scheduler.StepLR(optimizer_generator_2, step_size=1, gamma=0.5)
-    scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.5)
+    scheduler_g = optim.lr_scheduler.StepLR(optimizer_generator_2, step_size=1, gamma=0.8)
+    scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.8)
     mask_l1_loss_lambda = option.mask_l1_loss_lambda
     if mask_l1_loss_lambda > 0:
         print("using mask L1Loss weights: {}".format(mask_l1_loss_lambda))
@@ -66,6 +66,7 @@ def get_trainer(option, device):
     if perceptual_loss_lambda > 0:
         print("using PerceptualLoss. weights: {}".format(perceptual_loss_lambda))
         perceptual_loss = PerceptualLoss(device=device).to(device)
+        print(perceptual_loss)
 
     bce_loss = nn.BCELoss().to(device)
     bce_with_logits_loss = nn.BCEWithLogitsLoss().to(device)
