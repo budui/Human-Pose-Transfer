@@ -14,7 +14,6 @@ class PerceptualLoss(nn.Module):
             if i == perceptual_layers:
                 break
         self.vgg_sub_model.to(device)
-        print(self.vgg_sub_model)
         self.var_std = torch.Tensor([0.229, 0.224, 0.225]).resize_(1, 3, 1, 1).to(device)
         self.var_mean = torch.Tensor([0.485, 0.456, 0.406]).resize_(1, 3, 1, 1).to(device)
 
@@ -30,3 +29,10 @@ class PerceptualLoss(nn.Module):
 
         loss = F.l1_loss(g_feature, o_feature)
         return loss
+
+def _test():
+    p = PerceptualLoss()
+    print(p)
+
+if __name__ == '__main__':
+    _test()
