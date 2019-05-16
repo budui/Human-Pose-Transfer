@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-
+import torch.nn.functional as F
 
 from ignite.engine import Engine, Events
 from ignite.metrics import RunningAverage
@@ -56,7 +56,7 @@ def get_trainer(option, device):
     optimizer_generator_2 = optim.Adam(generator_2.parameters(), lr=option.g_lr, betas=(option.beta1, option.beta2))
     optimizer_discriminator = optim.Adam(discriminator.parameters(), lr=option.d_lr, betas=(option.beta1, option.beta2))
     scheduler_g = optim.lr_scheduler.StepLR(optimizer_generator_2, step_size=1, gamma=0.5)
-    scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.1)
+    scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.5)
     mask_l1_loss_lambda = option.mask_l1_loss_lambda
     if mask_l1_loss_lambda > 0:
         print("using mask L1Loss weights: {}".format(mask_l1_loss_lambda))
@@ -68,6 +68,7 @@ def get_trainer(option, device):
         perceptual_loss = PerceptualLoss(device=device).to(device)
 
     bce_loss = nn.BCELoss().to(device)
+    bce_with_logits_loss = nn.BCEWithLogitsLoss().to(device)
 
     batch_size = option.batch_size
     output_dir = option.output_dir
@@ -94,7 +95,7 @@ def get_trainer(option, device):
 
         # BCE loss
         pred_disc_fake_1 = discriminator(generated_img)
-        generator_2_bce_loss = bce_loss(pred_disc_fake_1, real_labels)
+        generator_2_bce_loss = bce_with_logits_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
         if mask_l1_loss_lambda > 0:
             generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
@@ -118,19 +119,19 @@ def get_trainer(option, device):
         optimizer_discriminator.zero_grad()
         # real loss 1
         pred_disc_real_2 = discriminator(target_img)
-        discriminator_real_loss = bce_loss(pred_disc_real_2, real_labels)
+        discriminator_real_loss = bce_with_logits_loss(pred_disc_real_2, real_labels)
         # fake loss 1
         pred_disc_fake_2 = discriminator(generated_img.detach())
-        discriminator_fake_loss = bce_loss(pred_disc_fake_2, fake_labels)
+        discriminator_fake_loss = bce_with_logits_loss(pred_disc_fake_2, fake_labels)
         # total loss 1
         discriminator_loss_1 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
 
         # real loss 2
         pred_disc_real_2 = discriminator(target_img)
-        discriminator_real_loss = bce_loss(pred_disc_real_2, real_labels)
+        discriminator_real_loss = bce_with_logits_loss(pred_disc_real_2, real_labels)
         # fake loss 2
         pred_disc_fake_2 = discriminator(condition_img)
-        discriminator_fake_loss = bce_loss(pred_disc_fake_2, fake_labels)
+        discriminator_fake_loss = bce_with_logits_loss(pred_disc_fake_2, fake_labels)
         discriminator_loss_2 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
 
         discriminator_loss = (discriminator_loss_1 + discriminator_loss_2)*0.5
@@ -147,9 +148,10 @@ def get_trainer(option, device):
 
         return {
             "pred": {
-                "G_fake": pred_disc_fake_1.mean().item(),
-                "D_fake": pred_disc_fake_2.mean().item(),
-                "D_real": pred_disc_real_2.mean().item()
+                # cause we do sigmoid in loss, here we must use sigmoid again.
+                "G_fake": torch.sigmoid(pred_disc_fake_1).mean().item() ,
+                "D_fake": torch.sigmoid(pred_disc_fake_2).mean().item(),
+                "D_real": torch.sigmoid(pred_disc_real_2).mean().item()
             },
             "loss": {
                 "G_bce": generator_2_bce_loss.item(),
@@ -178,7 +180,7 @@ def get_trainer(option, device):
         print("-----------scheduler------over----------")
 
     # attach running average metrics
-    monitoring_metrics = ['pred_D_fake', 'pred_D_real', 'loss_G',  'loss_D']
+    monitoring_metrics = ['pred_G_fake', 'pred_D_real', 'loss_G',  'loss_D']
     RunningAverage(output_transform=lambda x: x["pred"]['G_fake']).attach(trainer, 'pred_G_fake')
     RunningAverage(output_transform=lambda x: x["pred"]['D_fake']).attach(trainer, 'pred_D_fake')
     RunningAverage(output_transform=lambda x: x["pred"]['D_real']).attach(trainer, 'pred_D_real')
@@ -241,7 +243,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--replacement', action="store_true")
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
-    parser.add_argument("--num_pairs", default=-1, type=int, help="num_pairs every epoch, -1(default) for all pairs")
+    parser.add_argument('--flip_rate', type=float, default=0.0)
     parser.add_argument('--perceptual_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
@@ -256,20 +258,16 @@ def get_data_loader(opt):
         "data/market/train/pose_mask_image/",
         opt.train_pair_path,
         "data/market/annotation-train.csv",
-        flip_rate=0.5,
+        flip_rate=opt.flip_rate,
     )
-
-    if not opt.replacement and opt.num_pairs > 0:
-        raise ValueError("With replacement=False, num_pairs should not be specified,"
-                         " since a random permute will be performed.")
 
     image_loader = DataLoader(
         image_dataset, batch_size=opt.batch_size,
         num_workers=8, pin_memory=True, drop_last=True,
         sampler=torch.utils.data.RandomSampler(
-            image_dataset, replacement=opt.replacement,
-            num_samples=(opt.num_pairs if opt.num_pairs > 0 else None)
-        )
+            image_dataset,
+            replacement=opt.replacement
+        ),
     )
     print("dataset: {} num_batches: {}".format(image_dataset, len(image_loader)))
     return image_loader
