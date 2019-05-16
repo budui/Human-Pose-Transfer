@@ -7,7 +7,6 @@ from torch.utils.data import DataLoader
 
 
 from ignite.engine import Engine, Events
-
 from ignite.metrics import RunningAverage
 
 
@@ -56,19 +55,26 @@ def get_trainer(option, device):
 
     optimizer_generator_2 = optim.Adam(generator_2.parameters(), lr=option.g_lr, betas=(option.beta1, option.beta2))
     optimizer_discriminator = optim.Adam(discriminator.parameters(), lr=option.d_lr, betas=(option.beta1, option.beta2))
+    scheduler_g = optim.lr_scheduler.StepLR(optimizer_generator_2, step_size=1, gamma=0.5)
+    scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.1)
+    mask_l1_loss_lambda = option.mask_l1_loss_lambda
+    if mask_l1_loss_lambda > 0:
+        print("using mask L1Loss weights: {}".format(mask_l1_loss_lambda))
+        mask_l1_loss = MaskL1Loss().to(device)
+
+    perceptual_loss_lambda = option.perceptual_loss_lambda
+    if perceptual_loss_lambda > 0:
+        print("using PerceptualLoss. weights: {}".format(perceptual_loss_lambda))
+        perceptual_loss = PerceptualLoss(device=device).to(device)
 
     bce_loss = nn.BCELoss().to(device)
-    mask_l1_loss = MaskL1Loss().to(device)
-    perceptual_loss = PerceptualLoss(device=device).to(device)
-
-    mask_l1_loss_lambda = option.mask_l1_loss_lambda
-    perceptual_loss_lambda = option.perceptual_loss_lambda
 
     batch_size = option.batch_size
     output_dir = option.output_dir
 
     real_labels = torch.ones((batch_size, 1), device=device)
     fake_labels = torch.zeros((batch_size, 1), device=device)
+    fake_loss = torch.zeros([1], device=device, requires_grad=False, dtype=torch.float)
 
     def step(engine, batch):
         _move_data_pair_to(device, batch)
@@ -90,9 +96,15 @@ def get_trainer(option, device):
         pred_disc_fake_1 = discriminator(generated_img)
         generator_2_bce_loss = bce_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
-        generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
+        if mask_l1_loss_lambda > 0:
+            generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
+        else:
+            generator_2_mask_l1_loss = fake_loss
         # Perceptual loss
-        generator_2_perceptual_loss = perceptual_loss(generated_img, target_img)
+        if perceptual_loss_lambda > 0:
+            generator_2_perceptual_loss = perceptual_loss(generated_img, target_img)
+        else:
+            generator_2_perceptual_loss = fake_loss
         # total loss
         generator_2_loss = generator_2_bce_loss + \
                            mask_l1_loss_lambda * generator_2_mask_l1_loss + \
@@ -153,6 +165,17 @@ def get_trainer(option, device):
         # ignite objects
 
     trainer = Engine(step)
+
+    @trainer.on(Events.EPOCH_COMPLETED)
+    def adjust_learning_rate(engine):
+        print("-----------scheduler------step----------")
+        print(optimizer_discriminator.param_groups[0]["lr"])
+        print(optimizer_generator_2.param_groups[0]["lr"])
+        scheduler_g.step()
+        scheduler_d.step()
+        print(optimizer_discriminator.param_groups[0]["lr"])
+        print(optimizer_generator_2.param_groups[0]["lr"])
+        print("-----------scheduler------over----------")
 
     # attach running average metrics
     monitoring_metrics = ['pred_D_fake', 'pred_D_real', 'loss_G',  'loss_D']
@@ -218,6 +241,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--beta2', type=float, default=0.999)
     parser.add_argument('--replacement', action="store_true")
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
+    parser.add_argument("--num_pairs", default=-1, type=int, help="num_pairs every epoch, -1(default) for all pairs")
     parser.add_argument('--perceptual_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
@@ -235,10 +259,17 @@ def get_data_loader(opt):
         flip_rate=0.5,
     )
 
-    image_loader = DataLoader(image_dataset, batch_size=opt.batch_size,
-                              num_workers=8, pin_memory=True, drop_last=True,
-                              sampler=torch.utils.data.RandomSampler(image_dataset,
-                                                                     replacement=opt.replacement)
-                              )
+    if not opt.replacement and opt.num_pairs > 0:
+        raise ValueError("With replacement=False, num_pairs should not be specified,"
+                         " since a random permute will be performed.")
+
+    image_loader = DataLoader(
+        image_dataset, batch_size=opt.batch_size,
+        num_workers=8, pin_memory=True, drop_last=True,
+        sampler=torch.utils.data.RandomSampler(
+            image_dataset, replacement=opt.replacement,
+            num_samples=(opt.num_pairs if opt.num_pairs > 0 else None)
+        )
+    )
     print("dataset: {} num_batches: {}".format(image_dataset, len(image_loader)))
     return image_loader

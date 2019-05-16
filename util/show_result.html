@@ -28,6 +28,24 @@
         info_div.appendChild(p)
     }
 
+    function tableCreate(body, opt_json) {
+        var tbl = document.createElement('table');
+        tbl.setAttribute('border', '1');
+        var tbdy = document.createElement('tbody');
+        for (let dkey in opt_json) {
+            var tr = document.createElement('tr');
+            var td1 = document.createElement('td');
+            td1.appendChild(document.createTextNode(dkey))
+            tr.appendChild(td1)
+            var td2 = document.createElement('td');
+            td2.appendChild(document.createTextNode(opt_json[dkey]))
+            tr.appendChild(td2)
+            tbdy.appendChild(tr);
+        }
+        tbl.appendChild(tbdy);
+        body.appendChild(tbl)
+    }
+
 	window.onload = function (){
         fetch('data.json')
             .then(function(response) {
@@ -43,11 +61,7 @@
             })
             .then(function(opt_json) {
                 let info_div = document.getElementById('opt');
-                for(let dkey in opt_json){
-                    var p = document.createElement("p");
-                    p.innerText = `|\t${dkey}\t|\t${opt_json[dkey]}\t|`
-                    info_div.appendChild(p)
-                }
+                tableCreate(info_div, opt_json)
             });
 	};
     </script>
