@@ -46,7 +46,7 @@ def make_handle_create_plots(output_dir, logs_path, plot_path):
         warnings.warn('Loss plots will not be generated -- pandas or matplotlib not found')
 
     def create_plots(engine):
-        if engine.state.iteration % 200 == 0:
+        if engine.state.iteration % 1000 == 0:
             df = pd.read_csv(os.path.join(output_dir, logs_path), delimiter='\t')
             # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
             _ = df.plot(subplots=True, figsize=(10, 10))
