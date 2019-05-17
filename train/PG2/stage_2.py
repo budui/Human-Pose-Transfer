@@ -250,7 +250,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--g_lr', type=float, default=0.00002)
     parser.add_argument('--beta1', type=float, default=0.5)
     parser.add_argument('--beta2', type=float, default=0.999)
-    parser.add_argument('--replacement', action="store_true")
+    parser.add_argument('--replacement', default=False, type=lambda x: (str(x).lower() in ['true', "1", "yes"]))
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
     parser.add_argument('--flip_rate', type=float, default=0.0)
     parser.add_argument('--perceptual_loss_lambda', type=float, default=10)
