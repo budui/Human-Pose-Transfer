@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional
-
+from math import sqrt
 
 class _G1BasicBlock(nn.Module):
     def __init__(self, is_last_block, in_channels, out_channels,
@@ -201,9 +201,23 @@ class G2(nn.Module):
         output = self.last_conv(x)
         return output
 
+# port form tflib.ops.linear
+def weights_init_paper(m):
+    stdev = 0.02
+    sqrt_v = sqrt(3)
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.uniform_(m.weight.data, -stdev*sqrt_v, stdev*sqrt_v)
+    elif classname.find('Linear') != -1:
+        nn.init.uniform_(m.weight.data, -stdev*sqrt_v, stdev*sqrt_v)
+        if m.bias is not None:
+            m.bias.data.zero_()
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 # custom weights initialization called on netG and netD
-def weights_init(m):
+def weights_init_normal(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         nn.init.normal_(m.weight.data, 0.0, 0.02)
@@ -211,6 +225,14 @@ def weights_init(m):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
+def weights_init_xavier(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        nn.init.xavier_uniform_(m.weight.data)
+        nn.init.constant_(m.bias.data, 0)
+    elif classname.find('BatchNorm') != -1:
+        nn.init.normal_(m.weight.data, 1.0, 0.02)
+        nn.init.constant_(m.bias.data, 0)
 
 # Inspired by tensorflow code of PG2.
 class Discriminator(nn.Module):
@@ -237,8 +259,6 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
         )
         self.fc = nn.Linear(8*4*8*base_channels, 1)
-
-        self.main.apply(weights_init)
 
     def forward(self, x):
         x = self.main(x)
@@ -280,7 +300,7 @@ class DiscriminatorDC(nn.Module):
             nn.Sigmoid()
         )
 
-        self.main.apply(weights_init)
+        self.main.apply(weights_init_normal)
 
     def forward(self, x):
         output = self.main(x)

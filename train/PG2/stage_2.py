@@ -45,10 +45,19 @@ def get_trainer(option, device):
     val_data_pair = next(iter(val_image_loader))
     _move_data_pair_to(device, val_data_pair)
 
+    # Network
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
-    generator_1.load_state_dict(torch.load(option.G1_path))
     generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
     discriminator = PG2.Discriminator(in_channels=3)
+
+    # weight init
+    # call torch.load(.., map_location=’cpu’) and
+    # then load_state_dict() to avoid GPU RAM surge when loading a model checkpoint.
+    generator_1.load_state_dict(torch.load(option.G1_path, map_location="cpu"))
+    generator_2.apply(PG2.weights_init_xavier)
+    discriminator.apply(PG2.weights_init_paper)
+
+    # move model to device
     generator_1.to(device)
     generator_2.to(device)
     discriminator.to(device)
@@ -57,19 +66,18 @@ def get_trainer(option, device):
     optimizer_discriminator = optim.Adam(discriminator.parameters(), lr=option.d_lr, betas=(option.beta1, option.beta2))
     scheduler_g = optim.lr_scheduler.StepLR(optimizer_generator_2, step_size=1, gamma=0.8)
     scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.8)
+
     mask_l1_loss_lambda = option.mask_l1_loss_lambda
     if mask_l1_loss_lambda > 0:
         print("using mask L1Loss weights: {}".format(mask_l1_loss_lambda))
         mask_l1_loss = MaskL1Loss().to(device)
-
     perceptual_loss_lambda = option.perceptual_loss_lambda
     if perceptual_loss_lambda > 0:
         print("using PerceptualLoss. weights: {}".format(perceptual_loss_lambda))
         perceptual_loss = PerceptualLoss(device=device).to(device)
         print(perceptual_loss)
 
-    bce_loss = nn.BCELoss().to(device)
-    bce_with_logits_loss = nn.BCEWithLogitsLoss().to(device)
+    adversarial_loss = nn.BCEWithLogitsLoss().to(device)
 
     batch_size = option.batch_size
     output_dir = option.output_dir
@@ -96,7 +104,7 @@ def get_trainer(option, device):
 
         # BCE loss
         pred_disc_fake_1 = discriminator(generated_img)
-        generator_2_bce_loss = bce_with_logits_loss(pred_disc_fake_1, real_labels)
+        generator_2_bce_loss = adversarial_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
         if mask_l1_loss_lambda > 0:
             generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
@@ -120,19 +128,19 @@ def get_trainer(option, device):
         optimizer_discriminator.zero_grad()
         # real loss 1
         pred_disc_real_2 = discriminator(target_img)
-        discriminator_real_loss = bce_with_logits_loss(pred_disc_real_2, real_labels)
+        discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
         # fake loss 1
         pred_disc_fake_2 = discriminator(generated_img.detach())
-        discriminator_fake_loss = bce_with_logits_loss(pred_disc_fake_2, fake_labels)
+        discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
         # total loss 1
         discriminator_loss_1 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
 
         # real loss 2
         pred_disc_real_2 = discriminator(target_img)
-        discriminator_real_loss = bce_with_logits_loss(pred_disc_real_2, real_labels)
+        discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
         # fake loss 2
         pred_disc_fake_2 = discriminator(condition_img)
-        discriminator_fake_loss = bce_with_logits_loss(pred_disc_fake_2, fake_labels)
+        discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
         discriminator_loss_2 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
 
         discriminator_loss = (discriminator_loss_1 + discriminator_loss_2)*0.5
