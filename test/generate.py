@@ -59,10 +59,11 @@ def get_tester(option, device):
 
     @tester.on(Events.STARTED)
     def show(engine):
-        engine.state.idx = 1
-        copyfile("./util/show_generated.html", os.path.join(output_dir, "index.html"))
-        with open(os.path.join(output_dir, "data.json"), "w") as data_f:
-            json.dump({"limit": option.limit}, data_f)
+        if limit > 0:
+            engine.state.idx = 1
+            copyfile("./util/show_generated.html", os.path.join(output_dir, "index.html"))
+            with open(os.path.join(output_dir, "data.json"), "w") as data_f:
+                json.dump({"limit": option.limit}, data_f)
     return tester
 
 
