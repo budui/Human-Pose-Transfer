@@ -48,14 +48,14 @@ def get_trainer(option, device):
     # Network
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
-    discriminator = PG2.Discriminator(in_channels=3)
+    discriminator = PG2.PatchDiscriminatorSingle(in_channels=3)
 
     # weight init
     # call torch.load(.., map_location=’cpu’) and
     # then load_state_dict() to avoid GPU RAM surge when loading a model checkpoint.
     generator_1.load_state_dict(torch.load(option.G1_path, map_location="cpu"))
     generator_2.apply(PG2.weights_init_xavier)
-    discriminator.apply(PG2.weights_init_paper)
+    discriminator.apply(PG2.weights_init_normal)
 
     # move model to device
     generator_1.to(device)
@@ -77,13 +77,14 @@ def get_trainer(option, device):
         perceptual_loss = PerceptualLoss(device=device).to(device)
         print(perceptual_loss)
 
-    adversarial_loss = nn.BCEWithLogitsLoss().to(device)
+    adversarial_loss = nn.MSELoss().to(device)
 
     batch_size = option.batch_size
     output_dir = option.output_dir
 
-    real_labels = torch.ones((batch_size, 1), device=device)
-    fake_labels = torch.zeros((batch_size, 1), device=device)
+    patch_size = (128 // 2 ** 4, 64 // 2 ** 4)
+    real_labels = torch.ones((batch_size, 1, *patch_size), device=device)
+    fake_labels = torch.zeros((batch_size, 1, *patch_size), device=device)
     fake_loss = torch.zeros([1], device=device, requires_grad=False, dtype=torch.float)
 
     def step(engine, batch):
