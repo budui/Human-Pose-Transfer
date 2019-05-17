@@ -1,8 +1,11 @@
 import os
+import json
+from shutil import copyfile
 
 import numpy as np
 from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
+import torch
 from torch.utils.data import DataLoader
 
 import util.util as util
@@ -21,6 +24,8 @@ def get_tester(option, device):
     output_dir = option.output_dir
     generate = select_generator(option, device)
 
+    limit = option.limit
+
     def step(engine, batch):
         generated_imgs = generate(batch)
         condition_names = batch["P1_path"]
@@ -33,10 +38,13 @@ def get_tester(option, device):
             image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2image(batch["P1"].data[i])
             image[:, 1 * image_size[1]:2 * image_size[1], :] = util.tensor2image(batch["P2"].data[i])
             image[:, 2 * image_size[1]:3 * image_size[1], :] = util.tensor2image(generated_imgs.data[i])
-            util.save_image(
-                image,
-                os.path.join(output_dir, "{}___{}_vis.jpg".format(condition_names[i], target_names[i]))
-            )
+
+            if limit < 0:
+                image_path = os.path.join(output_dir, "{}___{}_vis.jpg".format(condition_names[i], target_names[i]))
+            else:
+                image_path =  os.path.join(output_dir, "{}.png".format(engine.state.idx))
+                engine.state.idx += 1
+            util.save_image(image, image_path)
         return
 
     tester = Engine(step)
@@ -49,6 +57,12 @@ def get_tester(option, device):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
+    @tester.on(Events.STARTED)
+    def show(engine):
+        engine.state.idx = 1
+        copyfile("./util/show_generated.html", os.path.join(output_dir, "index.html"))
+        with open(os.path.join(output_dir, "data.json"), "w") as data_f:
+            json.dump({"limit": option.limit}, data_f)
     return tester
 
 
@@ -58,6 +72,7 @@ def add_new_arg_for_parser(parser, name):
     if name == "PG2-Generate":
         parser.add_argument("--G1_path", type=str, default="./data/market/models/PG2/G1.pth")
         parser.add_argument("--G2_path", type=str)
+        parser.add_argument('--limit', default=-1, type=int, help='generated images amount limit. default is -1')
 
 
 def get_data_loader(opt):
@@ -69,5 +84,7 @@ def get_data_loader(opt):
         "data/market/annotation-test.csv",
     )
     print("load test dataset: {} pairs".format(len(image_dataset)))
+    if opt.limit >0 :
+        image_dataset = torch.utils.data.Subset(image_dataset, torch.randperm(len(image_dataset))[:opt.limit])
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8)
     return image_loader

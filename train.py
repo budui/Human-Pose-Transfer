@@ -65,7 +65,10 @@ def main():
     train.add_new_arg_for_parser(parser)
 
     opt = parser.parse_args(other_args)
-    print(opt)
+
+    for k,v in vars(opt).items():
+        print("{}: {}".format(k, v))
+    print("\n"*3)
 
     if top_opt.help and have_specified_name:
         print(parser.format_help())

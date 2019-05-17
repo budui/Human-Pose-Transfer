@@ -90,7 +90,8 @@ $ cd evaluate
 $ docker build -t hpt_evaluate . 
 $  # For user in China, you can build docker image like this:
 $ docker build -t hpt_evaluate . --build-arg PIP_PYPI="https://pypi.tuna.tsinghua.edu.cn/simple"
-$ docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm hpt_evaluate:latest python evaluate/getMetrics_market.py
+$ cd ..
+$ docker run -v $(pwd):/tmp -e NVIDIA_VISIBLE_DEVICES=0 -w /tmp --runtime=nvidia -it --rm hpt_evaluate:latest python evaluate/getMetrics_market.py
 ```
 
 Or evaluate in docker:
