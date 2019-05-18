@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>HPT Training</title>
+    <style>
+        img[title~=first] {
+            height:128px;
+            width: 128px;
+        }
+        img {
+            height:128px;
+            width: 64px;
+            object-fit:cover;
+            object-position: 100% 100%;
+        }
+    </style>
+    <script type="text/javascript">
+    function insert_image(insert_div, iteration, path, insert_p, first) {
+        var image = document.createElement("img");
+		image.src=`${path}/${iteration}.png`;
+		if (first) {
+		    image.title = "first";
+        }
+        insert_div.appendChild(image);
+        if (insert_p) {
+            var p = document.createElement("p");
+            insert_div.appendChild(p)
+        }
+    }
+
+    function show_result(max_iteration, name_array) {
+        var result_images_div = document.getElementById('test_images');
+        var p = document.createElement("p");
+        p.innerHTML = `${name_array}`;
+        result_images_div.append(p)
+        for (let index = max_iteration; index > 0; index) {
+            for (let i = 0; i < name_array.length; i++) {
+                insert_image(result_images_div, index, `${name_array[i]}`, i===name_array.length -1, i===0);
+            }
+
+            index = index - 1
+        }
+    }
+
+	window.onload = function (){
+        show_result(100, ["noreplace_flip", "lsgan-lr0.00004", "patchgan-lr0.00004", "patchgan-lr0.00004-10400"])
+	};
+    </script>
+</head>
+<body>
+    <div id="test_images"></div>
+</body>
+</html>

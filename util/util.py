@@ -32,6 +32,7 @@ def get_current_visuals(img_path, data_pair, new_imgs=None):
         new_img_list = []
         if new_imgs is not None:
             for nimg in new_imgs:
+                new_imgs.clamp_(-1, 1)
                 new_img_list.append(tensor2image(nimg.data[i]))
         input_p1 = tensor2image(data_pair["P1"].data[i])
         image_size = input_p1.shape[:2]

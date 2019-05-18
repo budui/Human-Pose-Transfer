@@ -84,8 +84,15 @@ def get_data_loader(opt):
         opt.pair_path,
         "data/market/annotation-test.csv",
     )
+    def generate_predictable_indices(limit):
+        import numpy as np
+        np.random.seed(520)
+        arr = np.arange(len(image_dataset))
+        np.random.shuffle(arr)
+        return arr[:limit]
+
     print("load test dataset: {} pairs".format(len(image_dataset)))
     if opt.limit >0 :
-        image_dataset = torch.utils.data.Subset(image_dataset, torch.randperm(len(image_dataset))[:opt.limit])
+        image_dataset = torch.utils.data.Subset(image_dataset, generate_predictable_indices(opt.limit))
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8)
     return image_loader

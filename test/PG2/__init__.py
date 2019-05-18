@@ -21,6 +21,7 @@ def get_generator(G1_path, G2_path, device):
         generator_1_imgs = generator_1(torch.cat([condition_img, condition_pose], dim=1))
         diff_imgs = generator_2(torch.cat([condition_img, generator_1_imgs], dim=1))
         generated_imgs = generator_1_imgs + diff_imgs
+        generated_imgs.clamp_(-1, 1)
         return generated_imgs
 
     return generator
