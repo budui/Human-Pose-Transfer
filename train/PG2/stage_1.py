@@ -99,9 +99,9 @@ def get_trainer(option, device):
 
     @trainer.on(Events.ITERATION_COMPLETED)
     def save_example(engine):
-        if (engine.state.iteration - 1) % option.print_freq == 0:
+        if engine.state.iteration > 0 and engine.state.iteration % option.print_freq == 0:
             img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
-            path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
+            path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.iteration))
             get_current_visuals(path, val_data_pair, [img_g1])
     return trainer
 
