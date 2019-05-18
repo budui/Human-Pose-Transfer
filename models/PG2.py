@@ -229,7 +229,8 @@ def weights_init_xavier(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
         nn.init.xavier_uniform_(m.weight.data)
-        nn.init.constant_(m.bias.data, 0)
+        if m.bias is not None:
+            nn.init.constant_(m.bias.data, 0)
     elif classname.find('BatchNorm') != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
@@ -358,9 +359,10 @@ class PatchDiscriminatorSingle(nn.Module):
         return self.model(img_input)
 
 def _test():
-    pd = PatchDiscriminator(3)
+    pd = Discriminator(3)
+    pd.apply(weights_init_xavier)
     inp = torch.randn([1, 3, 128, 64])
-    print(pd(inp, inp).size())
+    print(pd(inp).size())
 
 if __name__ == '__main__':
     _test()

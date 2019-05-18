@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-import torch.nn.functional as F
 
 from ignite.engine import Engine, Events
 from ignite.metrics import RunningAverage
@@ -15,12 +14,13 @@ import models.PG2 as PG2
 from util.util import get_current_visuals
 from loss.mask_l1 import MaskL1Loss
 from loss.perceptual_loss import PerceptualLoss
-from util.image_pool import ImagePool
 from train.common_handler import warp_common_handler
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
 
+SUPPORTED_DISCRIMINATOR = ["PATCHGAN", "DCGAN", "DCGAN-improve"]
+SUPPORTED_GAN_LOSS = ["LSLoss", "BCELoss"]
 
 def _move_data_pair_to(device, data_pair):
     # move data to GPU
@@ -31,8 +31,7 @@ def _move_data_pair_to(device, data_pair):
         else:
             data_pair[k] = data_pair[k].to(device)
 
-
-def get_trainer(option, device):
+def _get_val_data_pairs(option, device):
     val_image_dataset = dataset.BoneDataset(
         os.path.join(option.market1501, "bounding_box_test/"),
         "data/market/test/pose_map_image/",
@@ -40,22 +39,51 @@ def get_trainer(option, device):
         option.test_pair_path,
         "data/market/annotation-test.csv",
     )
-
     val_image_loader = DataLoader(val_image_dataset, batch_size=8, num_workers=1, shuffle=True)
     val_data_pair = next(iter(val_image_loader))
     _move_data_pair_to(device, val_data_pair)
+    return val_data_pair
 
+def _make_discriminator(d_type):
+    print("############ discriminaton: {} #############".format(d_type))
+    if d_type == SUPPORTED_DISCRIMINATOR[0]:
+        discriminator = PG2.PatchDiscriminatorSingle(in_channels=3)
+        discriminator.apply(PG2.weights_init_normal)
+        patch_size = (128 // 2 ** 4, 64 // 2 ** 4)
+    elif d_type == SUPPORTED_DISCRIMINATOR[1]:
+        discriminator = PG2.DiscriminatorDC(in_channels=3)
+        discriminator.apply(PG2.weights_init_normal)
+        patch_size = tuple()
+    elif d_type == SUPPORTED_DISCRIMINATOR[2]:
+        discriminator = PG2.Discriminator(in_channels=3)
+        discriminator.apply(PG2.weights_init_xavier)
+        patch_size = tuple()
+    else:
+        raise NotImplementedError("Not Supported discriminator type: {}".format(d_type))
+    return discriminator, patch_size
+
+def _make_gan_loss(loss_type):
+    print("############ gan loss: {} #############".format(loss_type))
+    if loss_type == SUPPORTED_GAN_LOSS[0]:
+        loss = nn.MSELoss()
+    elif loss_type == SUPPORTED_GAN_LOSS[1]:
+        loss = nn.BCEWithLogitsLoss()
+    else:
+        raise NotImplementedError("Not Supported gan loss type: {}".format(loss_type))
+    return loss
+
+
+def get_trainer(option, device):
     # Network
     generator_1 = PG2.G1(3 + 18, repeat_num=5, half_width=True, middle_z_dim=64)
     generator_2 = PG2.G2(3 + 3, hidden_num=64, repeat_num=3, skip_connect=1)
-    discriminator = PG2.PatchDiscriminatorSingle(in_channels=3)
+    discriminator, patch_size = _make_discriminator(option.discriminator)
 
     # weight init
     # call torch.load(.., map_location=’cpu’) and
     # then load_state_dict() to avoid GPU RAM surge when loading a model checkpoint.
     generator_1.load_state_dict(torch.load(option.G1_path, map_location="cpu"))
     generator_2.apply(PG2.weights_init_xavier)
-    discriminator.apply(PG2.weights_init_normal)
 
     # move model to device
     generator_1.to(device)
@@ -67,6 +95,8 @@ def get_trainer(option, device):
     scheduler_g = optim.lr_scheduler.StepLR(optimizer_generator_2, step_size=1, gamma=0.8)
     scheduler_d = optim.lr_scheduler.StepLR(optimizer_discriminator, step_size=1, gamma=0.8)
 
+    adversarial_loss = _make_gan_loss(option.gan_loss).to(device)
+
     mask_l1_loss_lambda = option.mask_l1_loss_lambda
     if mask_l1_loss_lambda > 0:
         print("using mask L1Loss weights: {}".format(mask_l1_loss_lambda))
@@ -77,12 +107,10 @@ def get_trainer(option, device):
         perceptual_loss = PerceptualLoss(device=device).to(device)
         print(perceptual_loss)
 
-    adversarial_loss = nn.MSELoss().to(device)
-
     batch_size = option.batch_size
     output_dir = option.output_dir
 
-    patch_size = (128 // 2 ** 4, 64 // 2 ** 4)
+
     real_labels = torch.ones((batch_size, 1, *patch_size), device=device)
     fake_labels = torch.zeros((batch_size, 1, *patch_size), device=device)
     fake_loss = torch.zeros([1], device=device, requires_grad=False, dtype=torch.float)
@@ -105,7 +133,7 @@ def get_trainer(option, device):
 
         # BCE loss
         pred_disc_fake_1 = discriminator(generated_img)
-        generator_2_bce_loss = adversarial_loss(pred_disc_fake_1, real_labels)
+        generator_2_adv_loss = adversarial_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
         if mask_l1_loss_lambda > 0:
             generator_2_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
@@ -117,7 +145,7 @@ def get_trainer(option, device):
         else:
             generator_2_perceptual_loss = fake_loss
         # total loss
-        generator_2_loss = generator_2_bce_loss + \
+        generator_2_loss = generator_2_adv_loss + \
                            mask_l1_loss_lambda * generator_2_mask_l1_loss + \
                            perceptual_loss_lambda * generator_2_perceptual_loss
         # gradient update
@@ -152,7 +180,7 @@ def get_trainer(option, device):
         # -----------------------------------------------------------
         # (3) Collect train info
 
-        if engine.state.iteration % 100 == 0:
+        if engine.state.iteration % option.print_freq == 0:
             path = os.path.join(output_dir, VAL_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
             get_current_visuals(path, batch, [generator_1_img, diff_img, generated_img])
 
@@ -164,7 +192,7 @@ def get_trainer(option, device):
                 "D_real": torch.sigmoid(pred_disc_real_2).mean().item()
             },
             "loss": {
-                "G_bce": generator_2_bce_loss.item(),
+                "G_bce": generator_2_adv_loss.item(),
                 "G_per": generator_2_perceptual_loss.item(),
                 "G_l1": generator_2_mask_l1_loss.item(),
                 "G": generator_2_loss.item(),
@@ -234,31 +262,41 @@ def get_trainer(option, device):
         [FAKE_IMG_FNAME, VAL_IMG_FNAME]
     )
 
+    val_data_pairs = _get_val_data_pairs(option, device)
+
     @trainer.on(Events.ITERATION_COMPLETED)
     def save_example(engine):
         if engine.state.iteration > 0 and engine.state.iteration % option.print_freq == 0:
-            img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
-            diff_map = generator_2(torch.cat([val_data_pair["P1"], img_g1], dim=1))
+            img_g1 = generator_1(torch.cat([val_data_pairs["P1"], val_data_pairs["BP2"]], dim=1))
+            diff_map = generator_2(torch.cat([val_data_pairs["P1"], img_g1], dim=1))
             img_g2 = diff_map + img_g1
             path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.iteration))
-            get_current_visuals(path, val_data_pair, [img_g1, diff_map, img_g2])
+            get_current_visuals(path, val_data_pairs, [img_g1, diff_map, img_g2])
 
     return trainer
 
 
 def add_new_arg_for_parser(parser):
-    parser.add_argument('--d_lr', type=float, default=0.00002)
-    parser.add_argument('--g_lr', type=float, default=0.00002)
-    parser.add_argument('--beta1', type=float, default=0.5)
-    parser.add_argument('--beta2', type=float, default=0.999)
-    parser.add_argument('--replacement', default=False, type=lambda x: (str(x).lower() in ['true', "1", "yes"]))
-    parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
-    parser.add_argument('--flip_rate', type=float, default=0.0)
-    parser.add_argument('--perceptual_loss_lambda', type=float, default=10)
     parser.add_argument('--G1_path', type=str, default="checkpoints/G1.pth")
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
     parser.add_argument('--train_pair_path', type=str, default="data/market/pairs-train.csv")
     parser.add_argument('--test_pair_path', type=str, default="data/market/pairs-test.csv")
+
+    parser.add_argument('--d_lr', type=float, default=0.00002)
+    parser.add_argument('--g_lr', type=float, default=0.00002)
+    parser.add_argument('--beta1', type=float, default=0.5)
+    parser.add_argument('--beta2', type=float, default=0.999)
+
+    parser.add_argument('--replacement', default=False, type=lambda x: (str(x).lower() in ['true', "1", "yes"]))
+    parser.add_argument('--flip_rate', type=float, default=0.5)
+
+    parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
+    parser.add_argument('--perceptual_loss_lambda', type=float, default=0)
+
+    parser.add_argument("--gan_loss", default="LSLoss", type=str, choices=SUPPORTED_GAN_LOSS,
+                        help="use which loss as gan loss?")
+    parser.add_argument("--discriminator", default="PATCHGAN", type=str, choices=SUPPORTED_DISCRIMINATOR,
+                        help="use which ?")
 
 
 def get_data_loader(opt):

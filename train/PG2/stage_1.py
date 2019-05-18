@@ -16,9 +16,8 @@ from util.util import get_current_visuals
 from loss.mask_l1 import MaskL1Loss
 from train.common_handler import warp_common_handler
 
-FAKE_IMG_FNAME = 'epoch_{:02d}_{:05d}.png'
-VAL_IMG_FNAME = 'train_img/epoch_{:02d}_{:05d}.png'
-
+FAKE_IMG_FNAME = 'iteration_{}.png'
+VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
 
 def _move_data_pair_to(device, data_pair):
     # move data to GPU

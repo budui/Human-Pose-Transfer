@@ -1,17 +1,17 @@
-# Human Pose Transfer for ReID
+# Human Pose Transfer
 
 ## Implemented paper
 
-- [x] Pose Guided Person Image Generation (NIPS2017)
-- [ ] Disentangled Person Image Generation (CVPR2018 Oral)
-- [ ] Progressive Pose Attention Transfer for Person Image Generation (CVPR2019 Oral)
+- [x] [Pose Guided Person Image Generation](http://arxiv.org/abs/1705.09368) (NIPS2017)
+- [ ] [Disentangled Person Image Generation](http://arxiv.org/abs/1712.02621) (CVPR2018 Oral)
+- [ ] [Progressive Pose Attention Transfer for Person Image Generation](https://arxiv.org/abs/1904.03349) (CVPR2019 Oral)
 
 ## Prepare
 
 ### Requirement
 
 * pytorch **1.0+**
-* ignite
+* [ignite](https://pytorch.org/ignite/)
 * torchvision
 * numpy
 * scipy
@@ -19,18 +19,26 @@
 * pandas
 * tqdm
 
-### Download data
+### GPU
 
-we need Market1501 and `market-pairs-train.csv`, `market-pairs-test.csv`, `market-annotation-train.csv`, `market-annotation-train.csv`
-provided by [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation)
+`batch_size=16`,  `Memory-Usage`: <5GB
+`batch_size=32`,  `Memory-Usage`: <10GB
 
-1. download Market1501 dataset from [here](http://www.liangzheng.com.cn/Project/project_reid.html)
-2. download 18 key points pose data from [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation)
-3. download train and test pair from [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation)
-4. copy&rename above pair and annotation file to `data`
-5. download Market1501 attribute from [Market-1501_Attribute](https://github.com/vana77/Market-1501_Attribute)
+### DataSet
 
-Finally, `data` folder looks like:
+For fair comparison, all implementation use 263,632 training pairs and 12,000 testing pairs from Market-1501 
+as in [PATN](https://arxiv.org/abs/1904.03349)
+
+| description                                                  | download from                                                |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Market1501 dataset images                                    | [Market1501](http://www.liangzheng.com.cn/Project/project_reid.html) |
+| train/test splits `market-pairs-train.csv`, `market-pairs-test.csv` | [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation) |
+| train/test key points annotations `market-annotation-train.csv`, `market-annotation-train.csv` | [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer#data-preperation) |
+| Attribute of images **not necessary for now**                | [Market-1501_Attribute](https://github.com/vana77/Market-1501_Attribute) | 
+
+copy&rename above pair and annotation file to `./data`
+
+Finally, your `./data` folder looks like:
 
 ```text
 data
@@ -55,34 +63,42 @@ data
 
 ### Generate Pose 18-channels image and corresponding mask
 
-
 1. `python3 tool/generate_pose_map_add_mask.py --type train`
-1. `python3 tool/generate_pose_map_add_mask.py --type test`
-
+2. `python3 tool/generate_pose_map_add_mask.py --type test`
 
 ## Train
 
-1. use `python3 train.py -h` to see support train process.
+All implementation use the same `train.py`.
+
+1. use `python3 train.py -h` to see supported train process.
 2. use `python3 train.py --name <TrainName> -h` to see train option for `TrainName`.
 3. use `python3 train.py --name <TrainName>` to train.
 
+You can observe the generated results during the train: `cd output_dir && python3 -m http.server`
 
-## Test 
+*I just create the `index.html` in `output_dir`, so feel free to use anything(like `devd`) to see mid product*
+
+## Test
+
+All implementation use the same `test.py`.
 
 1. use `python3 test.py -h` to see support test process.
 2. use `python3 test.py --name <TestName> -h` to see test option for `TestName`.
 3. use `python3 test.py --name <TestName>` to test.
 
-for example: `python test.py --name PG2-Generate --market1501 ../../data/Market-1501-v15.09.15/ --gpu_id 3 --output_dir generated --G2_path ./checkpoints/SUBMIT_VERSION/train/networks_G2_16000.pth  --G1_path ./data/market/models/PG2/G1.pth  --pair_path ./data/market/pairs-test.csv`
+## Evaluate
 
-## Eval
+First, please use `test.py --name PG2-Generate` to generate 12000 test images.
 
 For fair comparisons, I just copy&use the same evaluation codes in previous works Deform, PG2 and PATN 
-which used some outdated frameworks, like `Tensorflow 1.4.1`(python3)
+which 
 
-I recommend using docker to evaluate the results:
+I recommend using docker to evaluate the result 
+because evaluation codes use some outdated frameworks, like `Tensorflow 1.4.1`
 
-1. build docker image with `evaluate/Dockerfile`
+So, next:
+
+1. build docker image with `./evaluate/Dockerfile`
 2. run evaluate script
 
 ```bash
@@ -94,18 +110,71 @@ $ cd ..
 $ docker run -v $(pwd):/tmp -e NVIDIA_VISIBLE_DEVICES=0 -w /tmp --runtime=nvidia -it --rm hpt_evaluate:latest python evaluate/getMetrics_market.py
 ```
 
-Or evaluate in docker:
+Or use image `tensorflow/tensorflow:1.4.1-gpu-py3` to evaluate in docker bash:
 
 ```
-docker run -v <project path>:/tmp -w /tmp --runtime=nvidia -it --rm tensorflow/tensorflow:1.4.1-gpu-py3 bash
+docker run -v $(pwd):/tmp -w /tmp --runtime=nvidia -it --rm tensorflow/tensorflow:1.4.1-gpu-py3 bash
 # now in docker:
 $ pip install scikit-image tqdm 
 $ python evaluate/getMetrics_market.py
 ```
 
+## Implement result
 
+### PG2
+
+![PG2 result](./generated_images/PG2-origin.png)
+
+```bash
+# stage 1
+python3 train.py --name PG2-1 \
+    --gpu_id 0 \
+    --epochs 2 \
+    --output_dir "./checkpoints/PG2-1" \
+    --train_pair_path "./data/market/pairs-train.csv" \
+    --test_pair_path "./data/market/pairs-test.csv" \
+    --market1501 "/root/data/Market-1501-v15.09.15"
+```
+
+```bash
+# stage 2
+MARKET1501="/root/data/Market-1501-v15.09.15/"
+G1PATH="./data/market/models/PG2/G1.pth"
+python3 train.py --name PG2-2 \
+    --epochs 2 \
+    --gpu_id 1 \
+    --batch_size 32 \
+    --output_dir "checkpoints/PG2-2" \
+    --market1501  ${MARKET1501} \
+    --G1_path  ${G1PATH} \
+    --save_interval 200 \
+    --print_freq 200 \
+    --gan_loss BCELoss \
+    --discriminator DCGAN-improve
+```
+
+```bash
+# generate images
+GENERATED_IMAGE_PATH="./generated"
+LIMIT=-1
+GPU_ID=1
+G1_MODEL_PATH="./data/market/models/PG2/G1.pth"
+G2_MODEL_PATH="./checkpoints/patchgan/lr0.00008/models/networks_G2_13400.pth"
+MARKET1501="/root/data/Market-1501-v15.09.15/"
+
+python3 test.py --name PG2-Generate
+    --market1501 ${MARKET1501}
+    --gpu_id ${GPU_ID}
+    --G1_path ${G1_MODEL_PATH}
+    --G2_path ${G2_MODEL_PATH}
+    --output_dir ${GENERATED_IMAGE_PATH}
+    --limit ${LIMIT}
+```
 
 ## Thanks
 
+[Liqian Ma](https://github.com/charliememory) - [PG2's Tensorflow implementation](https://github.com/charliememory/Pose-Guided-Person-Image-Generation)
+Thanks for his patience. (￣▽￣)"
+
 [@tengteng95](https://github.com/tengteng95) - [Pose-Transfer](https://github.com/tengteng95/Pose-Transfer) 
-for clear code and his paper(Progressive Pose Attention Transfer for Person Image Generation).
+for clear code structure and his great paper.

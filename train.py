@@ -66,9 +66,10 @@ def main():
 
     opt = parser.parse_args(other_args)
 
-    for k,v in vars(opt).items():
-        print("{}: {}".format(k, v))
-    print("\n"*3)
+    if not top_opt.help:
+        for k, v in vars(opt).items():
+            print("{}: {}".format(k, v))
+        print("\n" * 3)
 
     if top_opt.help and have_specified_name:
         print(parser.format_help())
