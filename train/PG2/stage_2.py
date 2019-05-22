@@ -44,6 +44,7 @@ def _get_val_data_pairs(option, device):
     _move_data_pair_to(device, val_data_pair)
     return val_data_pair
 
+
 def _make_discriminator(d_type):
     print("############ discriminaton: {} #############".format(d_type))
     if d_type == SUPPORTED_DISCRIMINATOR[0]:
@@ -56,11 +57,12 @@ def _make_discriminator(d_type):
         patch_size = tuple()
     elif d_type == SUPPORTED_DISCRIMINATOR[2]:
         discriminator = PG2.Discriminator(in_channels=3)
-        discriminator.apply(PG2.weights_init_xavier)
+        discriminator.apply(PG2.weights_init_paper)
         patch_size = tuple()
     else:
         raise NotImplementedError("Not Supported discriminator type: {}".format(d_type))
     return discriminator, patch_size
+
 
 def _make_gan_loss(loss_type):
     print("############ gan loss: {} #############".format(loss_type))
