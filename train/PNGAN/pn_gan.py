@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 
 import dataset.bone_dataset as dataset
 from models import PNGAN
+from loss.mask_l1 import MaskL1Loss
 from train.common_handler import warp_common_handler
 from train.helper import move_data_pair_to
 from util.util import get_current_visuals
@@ -46,6 +47,7 @@ def get_trainer(opt, device="cuda"):
     scheduler_D = lr_scheduler.LambdaLR(optimizer_D, lr_lambda=lr_policy)
 
     l1_loss = nn.L1Loss().to(device)
+    mask_l1_loss = MaskL1Loss().to(device)
     gan_loss = nn.MSELoss().to(device)
 
     def step(engine, batch):
@@ -53,19 +55,20 @@ def get_trainer(opt, device="cuda"):
         condition_img = batch["P1"]
         target_pose = batch["BP2"]
         target_img = batch["P2"]
+        target_mask = batch["MP2"]
 
         generated_img = G(condition_img, target_pose)
-        pred_real_g = D(generated_img)
+        pred_real_g = D(generated_img, condition_img)
         g_adv_loss = gan_loss(pred_real_g, torch.ones_like(pred_real_g))
-        g_l1_loss = l1_loss(generated_img, target_img)
+        g_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
         g_loss = g_adv_loss + g_l1_loss * 10
 
         optimizer_G.zero_grad()
         g_loss.backward()
         optimizer_G.step()
 
-        pred_fake_d = D(generated_img.detach())
-        pred_real_d = D(condition_img)
+        pred_fake_d = D(generated_img.detach(), condition_img)
+        pred_real_d = D(target_img, condition_img)
 
         g_adv_real_loss = gan_loss(pred_real_d, torch.ones_like(pred_real_d))
         g_adv_fake_loss = gan_loss(pred_fake_d, torch.zeros_like(pred_fake_d))

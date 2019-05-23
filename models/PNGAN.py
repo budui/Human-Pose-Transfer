@@ -145,7 +145,7 @@ class PatchDiscriminator(nn.Module):
     def __init__(self, ndf):
         super(PatchDiscriminator, self).__init__()
         self.conv1 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(3, ndf, kernel_size=4, stride=2, padding=1, bias=False)),
+            ('conv', nn.Conv2d(6, ndf, kernel_size=4, stride=2, padding=1, bias=False)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv2 = nn.Sequential(OrderedDict([
@@ -167,8 +167,8 @@ class PatchDiscriminator(nn.Module):
             ('conv', nn.Conv2d(ndf * 8, 1, kernel_size=4, stride=1, padding=0, bias=False)),
         ]))
 
-    def forward(self, x):
-        x = self.conv1(x)
+    def forward(self, x, y):
+        x = self.conv1(torch.cat([x, y], dim=1))
         x = self.conv2(x)
         x = self.conv3(x)
         x = self.conv4(x)
