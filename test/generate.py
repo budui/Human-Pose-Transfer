@@ -16,6 +16,9 @@ def select_generator(option, device):
     if option.name == "PG2-Generate":
         from test.PG2 import get_generator
         return get_generator(option.G1_path, option.G2_path, device)
+    elif option.name == "PNGAN-Generate":
+        from test.PNGAN import get_generator
+        return get_generator(option.g_path, option.num_res, device)
     else:
         raise NotImplementedError("not implemented generate methods: {}".format(option.name))
 
@@ -71,10 +74,15 @@ def get_tester(option, device):
 def add_new_arg_for_parser(parser, name):
     parser.add_argument("--pair_path", type=str, default="data/market/pairs-test.csv")
     parser.add_argument('--market1501', type=str, default="../dataset/Market-1501-v15.09.15/")
+    parser.add_argument('--limit', default=-1, type=int, help='generated images amount limit. default is -1')
     if name == "PG2-Generate":
         parser.add_argument("--G1_path", type=str, default="./data/market/models/PG2/G1.pth")
         parser.add_argument("--G2_path", type=str)
-        parser.add_argument('--limit', default=-1, type=int, help='generated images amount limit. default is -1')
+
+    elif name == "PNGAN-Generate":
+        parser.add_argument("--g_path", type=str)
+        parser.add_argument('--num_res', type=int, default=9,
+                            help="the number of res block in generator")
 
 
 def get_data_loader(opt):

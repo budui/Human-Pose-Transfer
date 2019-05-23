@@ -8,7 +8,8 @@ import torch.backends.cudnn as cudnn
 
 IMPLEMENTED_TRAIN_ENGINE = [
     "DPIG-Pose",
-    "PG2-Generate"
+    "PG2-Generate",
+    "PNGAN-Generate"
 ]
 
 
@@ -16,6 +17,8 @@ def select_test(name):
     if name == IMPLEMENTED_TRAIN_ENGINE[0]:
         from test.DPIG import sample_pose as test
     elif name == IMPLEMENTED_TRAIN_ENGINE[1]:
+        from test import generate as test
+    elif name == IMPLEMENTED_TRAIN_ENGINE[2]:
         from test import generate as test
     else:
         raise NotImplementedError("You have not implement {}".format(name))

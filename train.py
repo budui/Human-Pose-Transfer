@@ -10,7 +10,7 @@ IMPLEMENTED_TRAIN_ENGINE = [
     "DPIG-1-Pose",
     "PG2-2",
     "PG2-1",
-    "PN-GAN"
+    "PNGAN"
 ]
 
 

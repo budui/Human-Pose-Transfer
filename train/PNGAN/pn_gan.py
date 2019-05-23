@@ -9,10 +9,13 @@ from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 
 import dataset.bone_dataset as dataset
-from models import PNGAN
 from loss.mask_l1 import MaskL1Loss
+from loss.perceptual_loss import PerceptualLoss
+from models import PNGAN
+from models.PG2 import weights_init_normal
 from train.common_handler import warp_common_handler
 from train.helper import move_data_pair_to
+from util.arg_parse import bool_arg
 from util.util import get_current_visuals
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
@@ -34,21 +37,35 @@ def _get_val_data_pairs(option, device):
 
 
 def get_trainer(opt, device="cuda"):
-    G = PNGAN.ResGenerator(64, 9)
+    G = PNGAN.ResGenerator(64, opt.num_res)
     D = PNGAN.PatchDiscriminator(64)
+    D.apply(weights_init_normal)
     G.to(device)
     D.to(device)
 
     optimizer_G = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
     optimizer_D = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
-    lr_policy = lambda epoch: (1 - 1 * max(0, epoch - 10) / 10)
+    lr_policy = lambda epoch: (1 - 1 * max(0, epoch - opt.de_epoch) / opt.de_epoch)
     scheduler_G = lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_policy)
     scheduler_D = lr_scheduler.LambdaLR(optimizer_D, lr_lambda=lr_policy)
 
-    l1_loss = nn.L1Loss().to(device)
-    mask_l1_loss = MaskL1Loss().to(device)
+    if opt.l1_loss > 0:
+        print("use l1_loss")
+        l1_loss = nn.L1Loss().to(device)
+
+    if opt.mask_l1_loss > 0:
+        print("use mask_l1_loss")
+        mask_l1_loss = MaskL1Loss().to(device)
+
+    if opt.perceptual_loss > 0:
+        print("use perceptual_loss")
+        perceptual_loss = PerceptualLoss(opt.perceptual_layers, device)
+        print(perceptual_loss)
+
     gan_loss = nn.MSELoss().to(device)
+
+    fake_loss = torch.zeros([1], device=device, requires_grad=False, dtype=torch.float)
 
     def step(engine, batch):
         move_data_pair_to(device, batch)
@@ -60,8 +77,26 @@ def get_trainer(opt, device="cuda"):
         generated_img = G(condition_img, target_pose)
         pred_real_g = D(generated_img, condition_img)
         g_adv_loss = gan_loss(pred_real_g, torch.ones_like(pred_real_g))
-        g_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
-        g_loss = g_adv_loss + g_l1_loss * 10
+
+        if opt.mask_l1_loss > 0:
+            g_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
+        else:
+            g_mask_l1_loss = fake_loss
+
+        if opt.l1_loss > 0:
+            g_l1_loss = l1_loss(generated_img, target_img)
+        else:
+            g_l1_loss = fake_loss
+
+        if opt.perceptual_loss > 0:
+            g_perceptual_loss = perceptual_loss(generated_img, target_img)
+        else:
+            g_perceptual_loss = fake_loss
+
+        g_loss = g_adv_loss + \
+                 g_l1_loss * opt.l1_loss + \
+                 g_mask_l1_loss * opt.mask_l1_loss + \
+                 g_perceptual_loss * opt.perceptual_loss
 
         optimizer_G.zero_grad()
         g_loss.backward()
@@ -93,6 +128,8 @@ def get_trainer(opt, device="cuda"):
             "loss": {
                 "G_adv": g_adv_loss.item(),
                 "G_l1": g_l1_loss.item(),
+                "G_per": g_perceptual_loss.item(),
+                "G_ml1": g_perceptual_loss.item(),
                 "G": g_loss.item(),
                 "D": d_adv_loss.item()
             },
@@ -118,20 +155,24 @@ def get_trainer(opt, device="cuda"):
     RunningAverage(output_transform=lambda x: x["pred"]['D_real']).attach(trainer, 'pred_D_real')
 
     RunningAverage(output_transform=lambda x: x["loss"]['G']).attach(trainer, 'loss_G')
-    RunningAverage(output_transform=lambda x: x["loss"]['G_l1']).attach(trainer, 'loss_G_l1')
+    RunningAverage(output_transform=lambda x: x["loss"]['D']).attach(trainer, 'loss_D')
     RunningAverage(output_transform=lambda x: x["loss"]['G_adv']).attach(trainer, 'loss_G_adv')
 
-    RunningAverage(output_transform=lambda x: x["loss"]['D']).attach(trainer, 'loss_D')
+    if opt.perceptual_loss:
+        RunningAverage(output_transform=lambda x: x["loss"]['G_per']).attach(trainer, 'loss_G_per')
+    if opt.mask_l1_loss:
+        RunningAverage(output_transform=lambda x: x["loss"]['G_ml1']).attach(trainer, 'loss_G_ml1')
+    if opt.l1_loss:
+        RunningAverage(output_transform=lambda x: x["loss"]['G_l1']).attach(trainer, 'loss_G_l1')
 
     networks_to_save = dict(G=G, D=D)
 
     def add_message(engine):
-        message = " | G(a/b/l): {:.3f}/{:.3f}/{:.3f}".format(
+        message = " | G(total/adv): {:.3f}/{:.3f}".format(
             engine.state.metrics["loss_G"],
             engine.state.metrics["loss_G_adv"],
-            engine.state.metrics["loss_G_l1"],
         )
-        message += " | D(a): {:.3f}".format(
+        message += " | D(adv): {:.3f}".format(
             engine.state.metrics["loss_D"],
         )
         message += " | Pred(Gr/Df/Dr/): {:.3f}/{:.3f}/{:.3f}".format(
@@ -188,5 +229,16 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--market1501', type=str, default="../DataSet/Market-1501-v15.09.15/")
     parser.add_argument('--train_pair_path', type=str, default="data/market/pairs-train.csv")
     parser.add_argument('--test_pair_path', type=str, default="data/market/pairs-test.csv")
-    parser.add_argument('--replacement', default=False, type=lambda x: (str(x).lower() in ['true', "1", "yes"]))
+    parser.add_argument('--replacement', default=False, type=bool_arg)
     parser.add_argument('--flip_rate', type=float, default=0.5)
+
+    parser.add_argument('--mask_l1_loss', type=float, default=10)
+    parser.add_argument('--l1_loss', type=float, default=0)
+    parser.add_argument('--perceptual_loss', type=float, default=10)
+    parser.add_argument('--perceptual_layers', type=int, default=3,
+                        help=" perceptual layers of perceptual_loss")
+
+    parser.add_argument('--num_res', type=int, default=9,
+                        help="the number of res block in generator")
+    parser.add_argument('--de_epoch', type=int, default=6,
+                        help="the number of res block in generator")

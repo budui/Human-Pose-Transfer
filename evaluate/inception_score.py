@@ -12,7 +12,7 @@ import numpy as np
 import tensorflow as tf
 from six.moves import urllib
 
-MODEL_DIR = '~/models'
+MODEL_DIR = '.models'
 DATA_URL = 'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
 softmax = None
 
