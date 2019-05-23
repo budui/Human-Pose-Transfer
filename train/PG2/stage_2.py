@@ -31,6 +31,7 @@ def _move_data_pair_to(device, data_pair):
         else:
             data_pair[k] = data_pair[k].to(device)
 
+
 def _get_val_data_pairs(option, device):
     val_image_dataset = dataset.BoneDataset(
         os.path.join(option.market1501, "bounding_box_test/"),
@@ -125,7 +126,8 @@ def get_trainer(option, device):
         target_mask = batch["MP2"]
 
         # get generated img
-        generator_1_img = generator_1(torch.cat([condition_img, condition_pose], dim=1))
+        with torch.set_grad_enabled(option.enable_grad):
+            generator_1_img = generator_1(torch.cat([condition_img, condition_pose], dim=1))
         diff_img = generator_2(torch.cat([condition_img, generator_1_img], dim=1))
         generated_img = generator_1_img + diff_img
 
@@ -290,6 +292,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--beta2', type=float, default=0.999)
 
     parser.add_argument('--replacement', default=False, type=lambda x: (str(x).lower() in ['true', "1", "yes"]))
+    parser.add_argument('--enable_grad', default=True, type=lambda x: (str(x).lower() in ['true', "1", "yes"]))
     parser.add_argument('--flip_rate', type=float, default=0.5)
 
     parser.add_argument('--mask_l1_loss_lambda', type=float, default=10)
