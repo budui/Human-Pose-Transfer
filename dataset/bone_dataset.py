@@ -7,6 +7,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets.folder import default_loader
+from scipy.io import loadmat
 
 DEFAULT_TRANS = transforms.Compose([
     transforms.ToTensor(),
@@ -119,6 +120,47 @@ class BoneDataset(Dataset):
     def __len__(self):
         return self.size
 
+
+class AttrBoneDataset(BoneDataset):
+    def __init__(self, mat_path, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.path = mat_path
+        self.mat = loadmat(self.path)["market_attribute"][0][0]
+        self.attrs = self._make_attr_dict("test")
+        self.attrs.update(self._make_attr_dict("train"))
+
+    def __getitem__(self, idx):
+        basic_items = super().__getitem__(idx)
+        id1 = basic_items["P1_path"][:4]
+        id2 = basic_items["P2_path"][:4]
+        attr_id1 = self.attrs[id1]
+        attr_id2 = self.attrs[id2]
+
+        basic_items.update({"P1_attr": attr_id1, "P2_attr": attr_id2})
+        return basic_items
+
+    def __repr__(self):
+        return "<AttrBoneDataset size: {} flip_rate: {} attribute_path: {}>".format(
+            len(self), self.flip_rate, self.path
+        )
+
+    def _make_attr_dict(self, t="test"):
+        mat = self.mat[t][0][0]
+        identities = mat["image_index"][0]
+        attrs_names = ["gender", "hair", "up", "down", "clothes", "hat", "backpack", "bag", "handbag", "age",
+                       "upblack", "upwhite", "upred", "uppurple", "upyellow", "upgray", "upblue", "upgreen",
+                       "downblack", "downwhite", "downpink", "downpurple", "downyellow", "downgray", "downblue",
+                       "downgreen", "downbrown"]
+        attrs = {}
+        for an in attrs_names:
+            attrs[an] = mat[an][0]
+
+        attrs_per_id = {}
+        for i, ids in enumerate(identities):
+            attrs_per_id[ids[0]] = torch.zeros([len(attrs_names)])
+            for j, an in enumerate(attrs_names):
+                attrs_per_id[ids[0]][j] = int(attrs[an][i])
+        return attrs_per_id
 
 def _test():
     image_dataset = BoneDataset(

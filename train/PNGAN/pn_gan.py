@@ -204,7 +204,8 @@ def get_trainer(opt, device="cuda"):
 
 
 def get_data_loader(opt):
-    image_dataset = dataset.BoneDataset(
+    image_dataset = dataset.AttrBoneDataset(
+        "data/market/attribute/market_attribute.mat",
         os.path.join(opt.market1501, "bounding_box_train/"),
         "data/market/train/pose_map_image/",
         "data/market/train/pose_mask_image/",
