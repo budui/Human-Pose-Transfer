@@ -8,7 +8,8 @@ import torch.backends.cudnn as cudnn
 IMPLEMENTED_TRAIN_ENGINE = [
     "DPIG-1-Pose",
     "PG2-2",
-    "PG2-1"
+    "PG2-1",
+    "PN-GAN"
 ]
 
 
@@ -19,6 +20,8 @@ def select_train(name):
         from train.PG2 import stage_2 as train
     elif name == IMPLEMENTED_TRAIN_ENGINE[2]:
         from train.PG2 import stage_1 as train
+    elif name == IMPLEMENTED_TRAIN_ENGINE[3]:
+        from train.PNGAN import pn_gan as train
     else:
         raise NotImplementedError("You have not implement {}".format(name))
     return train
