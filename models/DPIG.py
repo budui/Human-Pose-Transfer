@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional
 
 NUM_KEY_POINT = 18
-NUM_POSE_DIM = NUM_KEY_POINT*2+NUM_KEY_POINT
+NUM_POSE_DIM = NUM_KEY_POINT * 2 + NUM_KEY_POINT
 NUM_MIDDLE_CHANNELS = 128
 NUM_ROI_FEATURE_DIM = 32
 NUM_BG_FEATURE_DIM = 128
@@ -38,9 +38,9 @@ class _ResBasicBlock(nn.Module):
         )
 
         self.block_1conv = nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels, 3, 2, 1),
-                    nn.ReLU()
-                )
+            nn.Conv2d(in_channels, out_channels, 3, 2, 1),
+            nn.ReLU()
+        )
 
     def forward(self, x):
         res = x
@@ -150,16 +150,16 @@ class BGEncoder(nn.Module):
         )
 
         self.ResConvs = nn.ModuleList([
-            _ResBasicBlock(NUM_MIDDLE_CHANNELS*i, NUM_MIDDLE_CHANNELS*(i+1))
+            _ResBasicBlock(NUM_MIDDLE_CHANNELS * i, NUM_MIDDLE_CHANNELS * (i + 1))
             for i in range(1, num_res)
         ])
-        self.fc = nn.Linear(num_res*NUM_MIDDLE_CHANNELS*8*4, output_dim)
+        self.fc = nn.Linear(num_res * NUM_MIDDLE_CHANNELS * 8 * 4, output_dim)
 
     def forward(self, x):
         x = self.first_conv(x)
         for res_c in self.ResConvs:
             x = res_c(x)
-        x = x.view(-1, self.num_res*NUM_MIDDLE_CHANNELS*8*4)
+        x = x.view(-1, self.num_res * NUM_MIDDLE_CHANNELS * 8 * 4)
         x = self.fc(x)
         return x
 
@@ -174,22 +174,22 @@ class FGEncoder(nn.Module):
         )
 
         self.ResConvs = nn.ModuleList([
-            _ResBasicBlock(NUM_MIDDLE_CHANNELS*i, NUM_MIDDLE_CHANNELS*(i+1))
+            _ResBasicBlock(NUM_MIDDLE_CHANNELS * i, NUM_MIDDLE_CHANNELS * (i + 1))
             for i in range(1, num_res)
         ])
-        self.fc = nn.Linear(num_res*NUM_MIDDLE_CHANNELS*3*3, output_dim)
+        self.fc = nn.Linear(num_res * NUM_MIDDLE_CHANNELS * 3 * 3, output_dim)
 
     def forward(self, x):
         x = self.first_conv(x)
         for res_c in self.ResConvs:
             x = res_c(x)
-        x = x.view(-1, self.num_res*NUM_MIDDLE_CHANNELS*3*3)
+        x = x.view(-1, self.num_res * NUM_MIDDLE_CHANNELS * 3 * 3)
         x = self.fc(x)
         return x
 
 
 class AppearanceReconstructor(nn.Module):
-    def __init__(self, in_channels=7*NUM_ROI_FEATURE_DIM+NUM_BG_FEATURE_DIM,
+    def __init__(self, in_channels=7 * NUM_ROI_FEATURE_DIM + NUM_BG_FEATURE_DIM,
                  num_res=6, middle_z_dim=64, half_width=True):
         super(AppearanceReconstructor, self).__init__()
         self.hidden_num = NUM_MIDDLE_CHANNELS
@@ -300,5 +300,3 @@ def _test():
 
 if __name__ == '__main__':
     _test()
-
-

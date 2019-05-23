@@ -12,9 +12,9 @@ from skimage.morphology import square, dilation, erosion
 # default value when HPM detect failed
 KEY_POINT_MISSING_VALUE = -1
 # key points connection: list of (from_point_index, to_point_index)
-LIMB_SEQ = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9],
-           [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16],
-           [0,15], [15,17], [2,16], [5,17]]
+LIMB_SEQ = [[1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9],
+            [9, 10], [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16],
+            [0, 15], [15, 17], [2, 16], [5, 17]]
 
 
 def load_annotations_from_file(annotations_file_path):
@@ -28,16 +28,16 @@ def load_annotations_from_file(annotations_file_path):
         return annotations_data
 
 
-def expand_key_points(key_points, radius = 4):
+def expand_key_points(key_points, radius=4):
     new_points = []
     for f, t in LIMB_SEQ:
         if KEY_POINT_MISSING_VALUE in key_points[f] or KEY_POINT_MISSING_VALUE in key_points[t]:
             continue
         from_point, to_point = key_points[f], key_points[t]
         pair_distance = np.linalg.norm(from_point - to_point)
-        new_points_num = int(pair_distance/radius)
+        new_points_num = int(pair_distance / radius)
         for i in range(1, new_points_num):
-            new_points.append((from_point + (i / new_points_num)*(to_point - from_point)))
+            new_points.append((from_point + (i / new_points_num) * (to_point - from_point)))
     return new_points
 
 

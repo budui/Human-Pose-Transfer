@@ -1,9 +1,9 @@
-import os
 import csv
+import json
+import os
 
 import torch
 from torch.utils.data import Dataset
-import json
 
 KEY_POINTS_NUM = 18
 INVALID_KEY_POINTS_VALUE = -1

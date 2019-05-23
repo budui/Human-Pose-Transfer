@@ -1,11 +1,11 @@
-import os
 import json
+import os
 from shutil import copyfile
 
 import numpy as np
+import torch
 from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
-import torch
 from torch.utils.data import DataLoader
 
 import util.util as util
@@ -42,7 +42,7 @@ def get_tester(option, device):
             if limit < 0:
                 image_path = os.path.join(output_dir, "{}___{}_vis.jpg".format(condition_names[i], target_names[i]))
             else:
-                image_path =  os.path.join(output_dir, "{}.png".format(engine.state.idx))
+                image_path = os.path.join(output_dir, "{}.png".format(engine.state.idx))
                 engine.state.idx += 1
             util.save_image(image, image_path)
         return
@@ -64,6 +64,7 @@ def get_tester(option, device):
             copyfile("./util/show_generated.html", os.path.join(output_dir, "index.html"))
             with open(os.path.join(output_dir, "data.json"), "w") as data_f:
                 json.dump({"limit": option.limit}, data_f)
+
     return tester
 
 
@@ -84,6 +85,7 @@ def get_data_loader(opt):
         opt.pair_path,
         "data/market/annotation-test.csv",
     )
+
     def generate_predictable_indices(limit):
         import numpy as np
         np.random.seed(520)
@@ -92,7 +94,7 @@ def get_data_loader(opt):
         return arr[:limit]
 
     print("load test dataset: {} pairs".format(len(image_dataset)))
-    if opt.limit >0 :
+    if opt.limit > 0:
         image_dataset = torch.utils.data.Subset(image_dataset, generate_predictable_indices(opt.limit))
     image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8)
     return image_loader

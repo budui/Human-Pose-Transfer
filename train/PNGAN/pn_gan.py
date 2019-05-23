@@ -2,22 +2,17 @@ import os
 
 import torch
 import torch.optim as optim
+from ignite.engine import Engine, Events
+from ignite.metrics import RunningAverage
 from torch import nn
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 
-
-from ignite.engine import Engine, Events
-
-from ignite.metrics import RunningAverage
-
-
 import dataset.bone_dataset as dataset
 from models import PNGAN
-from util.util import get_current_visuals
-from loss.mask_l1 import MaskL1Loss
 from train.common_handler import warp_common_handler
 from train.helper import move_data_pair_to
+from util.util import get_current_visuals
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
@@ -35,6 +30,7 @@ def _get_val_data_pairs(option, device):
     val_data_pair = next(iter(val_image_loader))
     move_data_pair_to(device, val_data_pair)
     return val_data_pair
+
 
 def get_trainer(opt, device="cuda"):
     G = PNGAN.ResGenerator(64, 9)
@@ -62,7 +58,7 @@ def get_trainer(opt, device="cuda"):
         pred_real_g = D(generated_img)
         g_adv_loss = gan_loss(pred_real_g, torch.ones_like(pred_real_g))
         g_l1_loss = l1_loss(generated_img, target_img)
-        g_loss = g_adv_loss + g_l1_loss*10
+        g_loss = g_adv_loss + g_l1_loss * 10
 
         optimizer_G.zero_grad()
         g_loss.backward()
@@ -87,7 +83,7 @@ def get_trainer(opt, device="cuda"):
         return {
             "pred": {
                 # cause we do sigmoid in loss, here we must use sigmoid again.
-                "G_real": torch.sigmoid(pred_real_g).mean().item() ,
+                "G_real": torch.sigmoid(pred_real_g).mean().item(),
                 "D_fake": torch.sigmoid(pred_fake_d).mean().item(),
                 "D_real": torch.sigmoid(pred_real_d).mean().item()
             },

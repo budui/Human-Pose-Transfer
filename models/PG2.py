@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional
 from math import sqrt
 
+
 class _G1BasicBlock(nn.Module):
     def __init__(self, is_last_block, in_channels, out_channels,
                  kernel_size=3, stride=1, padding=1, in_decoder=False):
@@ -44,7 +45,7 @@ class _G1BasicBlock(nn.Module):
 
 
 class G1(nn.Module):
-    def __init__(self, in_channels=18+3, hidden_num=128, repeat_num=6, middle_z_dim=128, half_width=False):
+    def __init__(self, in_channels=18 + 3, hidden_num=128, repeat_num=6, middle_z_dim=128, half_width=False):
         super(G1, self).__init__()
         self.hidden_num = hidden_num
         self.repeat_num = repeat_num
@@ -144,7 +145,7 @@ class _G2BasicBlock(nn.Module):
 
 
 class G2(nn.Module):
-    def __init__(self, in_channels=3+3, hidden_num=128, repeat_num=4, skip_connect=0):
+    def __init__(self, in_channels=3 + 3, hidden_num=128, repeat_num=4, skip_connect=0):
         super(G2, self).__init__()
         self.hidden_num = hidden_num
         self.repeat_num = repeat_num
@@ -201,20 +202,22 @@ class G2(nn.Module):
         output = self.last_conv(x)
         return output
 
+
 # port form tflib.ops.linear
 def weights_init_paper(m):
     stdev = 0.02
     sqrt_v = sqrt(3)
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        nn.init.uniform_(m.weight.data, -stdev*sqrt_v, stdev*sqrt_v)
+        nn.init.uniform_(m.weight.data, -stdev * sqrt_v, stdev * sqrt_v)
     elif classname.find('Linear') != -1:
-        nn.init.uniform_(m.weight.data, -stdev*sqrt_v, stdev*sqrt_v)
+        nn.init.uniform_(m.weight.data, -stdev * sqrt_v, stdev * sqrt_v)
         if m.bias is not None:
             m.bias.data.zero_()
     elif classname.find('BatchNorm') != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
+
 
 # custom weights initialization called on netG and netD
 def weights_init_normal(m):
@@ -225,6 +228,7 @@ def weights_init_normal(m):
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
 
+
 def weights_init_xavier(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
@@ -234,6 +238,7 @@ def weights_init_xavier(m):
     elif classname.find('BatchNorm') != -1:
         nn.init.normal_(m.weight.data, 1.0, 0.02)
         nn.init.constant_(m.bias.data, 0)
+
 
 # Inspired by tensorflow code of PG2.
 class Discriminator(nn.Module):
@@ -259,11 +264,11 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(base_channels * 8),
             nn.LeakyReLU(0.2, inplace=True),
         )
-        self.fc = nn.Linear(8*4*8*base_channels, 1)
+        self.fc = nn.Linear(8 * 4 * 8 * base_channels, 1)
 
     def forward(self, x):
         x = self.main(x)
-        x = x.view(-1, 8*4*8*self.base_channels)
+        x = x.view(-1, 8 * 4 * 8 * self.base_channels)
         return self.fc(x)
 
 
@@ -334,6 +339,7 @@ class PatchDiscriminator(nn.Module):
         img_input = torch.cat((img_A, img_B), 1)
         return self.model(img_input)
 
+
 class PatchDiscriminatorSingle(nn.Module):
     def __init__(self, in_channels=3):
         super(PatchDiscriminatorSingle, self).__init__()
@@ -358,14 +364,13 @@ class PatchDiscriminatorSingle(nn.Module):
     def forward(self, img_input):
         return self.model(img_input)
 
+
 def _test():
     pd = Discriminator(3)
     pd.apply(weights_init_xavier)
     inp = torch.randn([1, 3, 128, 64])
     print(pd(inp).size())
 
+
 if __name__ == '__main__':
     _test()
-
-
-

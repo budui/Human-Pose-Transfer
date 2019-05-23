@@ -2,11 +2,10 @@ import os
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, Subset
-
 from ignite.contrib.handlers import ProgressBar
 from ignite.engine import Engine, Events
 from ignite.metrics import RunningAverage
+from torch.utils.data import DataLoader, Subset
 
 from dataset.key_point_dataset import KeyPointDataset
 from models.DPIG import PoseDecoder, PoseEncoder

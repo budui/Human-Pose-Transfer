@@ -1,11 +1,11 @@
+import json
 import os
 import warnings
-import json
 from shutil import copyfile
 
-from ignite.handlers import ModelCheckpoint, Timer
-from ignite.engine import Events
 from ignite.contrib.handlers import ProgressBar
+from ignite.engine import Events
+from ignite.handlers import ModelCheckpoint, Timer
 
 CKPT_PREFIX = 'models/networks'
 LOGS_FNAME = 'logs.csv'
@@ -24,12 +24,13 @@ def make_handle_handle_exception(checkpoint_handler, save_networks, create_plots
                 create_plots(engine)
 
             exception_save_networks = {
-                "exception_{}".format(k):save_networks[k]
+                "exception_{}".format(k): save_networks[k]
                 for k in save_networks
             }
             checkpoint_handler(engine, exception_save_networks)
         else:
             raise e
+
     return handle_exception
 
 
@@ -68,18 +69,24 @@ def make_handle_make_dirs(output_dir, fnames):
             if not os.path.exists(save_folder):
                 print("mkdir {}".format(save_folder))
                 os.makedirs(save_folder)
+
     return make_dirs
+
 
 def make_move_html(output_dir):
     def move_html(engine):
         copyfile("./util/show_result.html", os.path.join(output_dir, "index.html"))
+
     return move_html
+
 
 def make_create_option_data(option):
     def create_option_data(engine):
         with open(os.path.join(option.output_dir, OPTION_JSON), "w") as data_f:
-            json.dump(vars(option),data_f)
+            json.dump(vars(option), data_f)
+
     return create_option_data
+
 
 def make_handle_print_times(timer, pbar):
     def print_times(engine):
@@ -90,6 +97,7 @@ def make_handle_print_times(timer, pbar):
             timer.value() * engine.state.iteration
         ))
         timer.reset()
+
     return print_times
 
 
@@ -114,12 +122,13 @@ def make_handle_print_logs(output_dir, epochs, print_freq, pbar, add_message):
 
             with open(os.path.join(output_dir, DATA_JSON), "w") as data_f:
                 json.dump({
-                        "iteration" : engine.state.iteration,
-                        "print_freq": print_freq,
-                        "epoch": engine.state.epoch
-                    },
+                    "iteration": engine.state.iteration,
+                    "print_freq": print_freq,
+                    "epoch": engine.state.epoch
+                },
                     data_f
                 )
+
     return print_logs
 
 

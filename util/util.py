@@ -1,6 +1,6 @@
+import numpy as np
 import torch
 from PIL import Image
-import numpy as np
 
 from util.pose import draw_pose_from_cords_and_visibility, draw_pose_from_cords
 
@@ -11,6 +11,7 @@ def tensor2image(image_tensor, imtype=np.uint8):
         image_numpy = np.tile(image_numpy, (3, 1, 1))
     image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
     return image_numpy.astype(imtype)
+
 
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy)

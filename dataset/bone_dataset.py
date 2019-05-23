@@ -1,21 +1,22 @@
-import csv, json
+import csv
+import json
 import os
-import numpy
 
+import numpy
 import torch
 from torch.utils.data import Dataset
-from torchvision.datasets.folder import default_loader
 from torchvision import transforms
+from torchvision.datasets.folder import default_loader
 
 DEFAULT_TRANS = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    transforms.ToTensor(),
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
 
 
 class BoneDataset(Dataset):
     def __init__(self, image_folder, bone_folder, mask_folder, pair_list_path, annotations_file_path,
-                flip_rate=0.0, loader=default_loader,
+                 flip_rate=0.0, loader=default_loader,
                  transform=DEFAULT_TRANS, only_path=False):
 
         self.image_folder = image_folder
@@ -131,9 +132,10 @@ def _test():
     )
 
     image_loader = torch.utils.data.DataLoader(image_dataset, batch_size=32,
-                              num_workers=8, pin_memory=True,
-                              sampler=torch.utils.data.RandomSampler(image_dataset, replacement=True, num_samples=4000)
-                              )
+                                               num_workers=8, pin_memory=True,
+                                               sampler=torch.utils.data.RandomSampler(image_dataset, replacement=True,
+                                                                                      num_samples=4000)
+                                               )
     print(len(image_loader), image_dataset)
     iter_results = set()
     for j in range(120):
@@ -141,6 +143,7 @@ def _test():
             for i in range(len(data["P1_path"])):
                 iter_results.add((data["P1_path"][i], data["P2_path"][i]))
         print(":", len(iter_results))
+
 
 if __name__ == '__main__':
     _test()

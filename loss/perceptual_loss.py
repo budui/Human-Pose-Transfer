@@ -19,9 +19,9 @@ class PerceptualLoss(nn.Module):
 
     def forward(self, generated_image, origin_image):
         # [-1, 1] to [0, 1] then Normalize
-        re_norm = lambda image:(((image + 1) / 2) - self.var_mean)/self.var_std
+        re_norm = lambda image: (((image + 1) / 2) - self.var_mean) / self.var_std
         generated_image_norm = re_norm(generated_image)
-        origin_image_norm =re_norm(origin_image)
+        origin_image_norm = re_norm(origin_image)
 
         g_feature = self.vgg_sub_model(generated_image_norm)
         o_feature = self.vgg_sub_model(origin_image_norm)
@@ -30,9 +30,11 @@ class PerceptualLoss(nn.Module):
         loss = F.l1_loss(g_feature, o_feature)
         return loss
 
+
 def _test():
     p = PerceptualLoss()
     print(p)
+
 
 if __name__ == '__main__':
     _test()

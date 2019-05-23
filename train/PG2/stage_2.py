@@ -3,24 +3,23 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
-
 from ignite.engine import Engine, Events
 from ignite.metrics import RunningAverage
-
+from torch.utils.data import DataLoader
 
 import dataset.bone_dataset as dataset
 import models.PG2 as PG2
-from util.util import get_current_visuals
 from loss.mask_l1 import MaskL1Loss
 from loss.perceptual_loss import PerceptualLoss
 from train.common_handler import warp_common_handler
+from util.util import get_current_visuals
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
 
 SUPPORTED_DISCRIMINATOR = ["PATCHGAN", "DCGAN", "DCGAN-improve"]
 SUPPORTED_GAN_LOSS = ["LSLoss", "BCELoss"]
+
 
 def _move_data_pair_to(device, data_pair):
     # move data to GPU
@@ -113,7 +112,6 @@ def get_trainer(option, device):
     batch_size = option.batch_size
     output_dir = option.output_dir
 
-
     real_labels = torch.ones((batch_size, 1, *patch_size), device=device)
     fake_labels = torch.zeros((batch_size, 1, *patch_size), device=device)
     fake_loss = torch.zeros([1], device=device, requires_grad=False, dtype=torch.float)
@@ -176,7 +174,7 @@ def get_trainer(option, device):
         discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
         discriminator_loss_2 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
 
-        discriminator_loss = (discriminator_loss_1 + discriminator_loss_2)*0.5
+        discriminator_loss = (discriminator_loss_1 + discriminator_loss_2) * 0.5
         discriminator_loss.backward()
         # gradient update
         optimizer_discriminator.step()
@@ -191,7 +189,7 @@ def get_trainer(option, device):
         return {
             "pred": {
                 # cause we do sigmoid in loss, here we must use sigmoid again.
-                "G_fake": torch.sigmoid(pred_disc_fake_1).mean().item() ,
+                "G_fake": torch.sigmoid(pred_disc_fake_1).mean().item(),
                 "D_fake": torch.sigmoid(pred_disc_fake_2).mean().item(),
                 "D_real": torch.sigmoid(pred_disc_real_2).mean().item()
             },
@@ -222,7 +220,7 @@ def get_trainer(option, device):
         print("-----------scheduler------over----------")
 
     # attach running average metrics
-    monitoring_metrics = ['pred_G_fake', 'pred_D_real', 'loss_G',  'loss_D']
+    monitoring_metrics = ['pred_G_fake', 'pred_D_real', 'loss_G', 'loss_D']
     RunningAverage(output_transform=lambda x: x["pred"]['G_fake']).attach(trainer, 'pred_G_fake')
     RunningAverage(output_transform=lambda x: x["pred"]['D_fake']).attach(trainer, 'pred_D_fake')
     RunningAverage(output_transform=lambda x: x["pred"]['D_real']).attach(trainer, 'pred_D_real')

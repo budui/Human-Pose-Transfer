@@ -1,75 +1,75 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta content="text/html; charset=utf-8" http-equiv="content-type">
     <title>HPT Training</title>
     <script type="text/javascript">
-    function insert_image(insert_div, iteration) {
-        var image = document.createElement("img");
-		image.src=`iteration_${iteration}.png`;
-        insert_div.appendChild(image)
-        var li = document.createElement("li");
-        li.innerHTML = `iteration: ${iteration}`
-        insert_div.appendChild(li)
-    }
-
-    function show_result(max_iteration, interval) {
-        var result_images_div = document.getElementById('test_images');
-        for (let index = max_iteration; index > 0; index) {
-            insert_image(result_images_div, index)
-            index = index - interval
+        function insert_image(insert_div, iteration) {
+            var image = document.createElement("img");
+            image.src = `iteration_${iteration}.png`;
+            insert_div.appendChild(image)
+            var li = document.createElement("li");
+            li.innerHTML = `iteration: ${iteration}`
+            insert_div.appendChild(li)
         }
-    }
 
-    function show_train_info(data) {
-        var info_div = document.getElementById('info');
-        var p = document.createElement("p");
-        p.innerText = `${JSON.stringify(data)}`
-        info_div.appendChild(p)
-    }
-
-    function tableCreate(body, opt_json) {
-        var tbl = document.createElement('table');
-        tbl.setAttribute('border', '1');
-        var tbdy = document.createElement('tbody');
-        for (let dkey in opt_json) {
-            var tr = document.createElement('tr');
-            var td1 = document.createElement('td');
-            td1.appendChild(document.createTextNode(dkey))
-            tr.appendChild(td1)
-            var td2 = document.createElement('td');
-            td2.appendChild(document.createTextNode(opt_json[dkey]))
-            tr.appendChild(td2)
-            tbdy.appendChild(tr);
+        function show_result(max_iteration, interval) {
+            var result_images_div = document.getElementById('test_images');
+            for (let index = max_iteration; index > 0; index) {
+                insert_image(result_images_div, index)
+                index = index - interval
+            }
         }
-        tbl.appendChild(tbdy);
-        body.appendChild(tbl)
-    }
 
-	window.onload = function (){
-        fetch('data.json')
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data_json) {
-                show_result(data_json["iteration"], data_json["print_freq"])
-                show_train_info(data_json)
-            });
-        fetch('opt.json')
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(opt_json) {
-                let info_div = document.getElementById('opt');
-                tableCreate(info_div, opt_json)
-            });
-	};
+        function show_train_info(data) {
+            var info_div = document.getElementById('info');
+            var p = document.createElement("p");
+            p.innerText = `${JSON.stringify(data)}`
+            info_div.appendChild(p)
+        }
+
+        function tableCreate(body, opt_json) {
+            var tbl = document.createElement('table');
+            tbl.setAttribute('border', '1');
+            var tbdy = document.createElement('tbody');
+            for (let dkey in opt_json) {
+                var tr = document.createElement('tr');
+                var td1 = document.createElement('td');
+                td1.appendChild(document.createTextNode(dkey))
+                tr.appendChild(td1)
+                var td2 = document.createElement('td');
+                td2.appendChild(document.createTextNode(opt_json[dkey]))
+                tr.appendChild(td2)
+                tbdy.appendChild(tr);
+            }
+            tbl.appendChild(tbdy);
+            body.appendChild(tbl)
+        }
+
+        window.onload = function () {
+            fetch('data.json')
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (data_json) {
+                    show_result(data_json["iteration"], data_json["print_freq"])
+                    show_train_info(data_json)
+                });
+            fetch('opt.json')
+                .then(function (response) {
+                    return response.json();
+                })
+                .then(function (opt_json) {
+                    let info_div = document.getElementById('opt');
+                    tableCreate(info_div, opt_json)
+                });
+        };
     </script>
 </head>
 <body>
-    <div id="opt"></div>
-    <img src="plot.svg">
-    <div id="info"></div>
-    <div id="test_images"></div>
+<div id="opt"></div>
+<img src="plot.svg">
+<div id="info"></div>
+<div id="test_images"></div>
 </body>
 </html>

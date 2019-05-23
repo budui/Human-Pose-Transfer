@@ -2,22 +2,19 @@ import os
 
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
-
-
 from ignite.engine import Engine, Events
-
 from ignite.metrics import RunningAverage
-
+from torch.utils.data import DataLoader
 
 import dataset.bone_dataset as dataset
 import models.PG2 as PG2
-from util.util import get_current_visuals
 from loss.mask_l1 import MaskL1Loss
 from train.common_handler import warp_common_handler
+from util.util import get_current_visuals
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
+
 
 def _move_data_pair_to(device, data_pair):
     # move data to GPU
@@ -103,6 +100,7 @@ def get_trainer(option, device):
             img_g1 = generator_1(torch.cat([val_data_pair["P1"], val_data_pair["BP2"]], dim=1))
             path = os.path.join(output_dir, FAKE_IMG_FNAME.format(engine.state.iteration))
             get_current_visuals(path, val_data_pair, [img_g1])
+
     return trainer
 
 

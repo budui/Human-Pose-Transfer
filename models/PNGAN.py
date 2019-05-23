@@ -1,6 +1,7 @@
+from collections import OrderedDict
+
 import torch
 import torch.nn as nn
-from collections import OrderedDict
 
 
 class ResBlock(nn.Module):
@@ -31,32 +32,34 @@ class ResGenerator(nn.Module):
         super(ResGenerator, self).__init__()
         self.conv1 = nn.Sequential(OrderedDict([
             ('pad', nn.ReflectionPad2d(3)),
-            ('conv', nn.Conv2d(3+18, ngf, kernel_size=7, stride=1, padding=0, bias=True)),
+            ('conv', nn.Conv2d(3 + 18, ngf, kernel_size=7, stride=1, padding=0, bias=True)),
             ('bn', nn.InstanceNorm2d(ngf)),
             ('relu', nn.ReLU(inplace=True)),
         ]))
         self.conv2 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ngf, ngf*2, kernel_size=3, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ngf*2)),
+            ('conv', nn.Conv2d(ngf, ngf * 2, kernel_size=3, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ngf * 2)),
             ('relu', nn.ReLU(inplace=True)),
         ]))
         self.conv3 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ngf*2, ngf*4, kernel_size=3, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ngf*4)),
+            ('conv', nn.Conv2d(ngf * 2, ngf * 4, kernel_size=3, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ngf * 4)),
             ('relu', nn.ReLU(inplace=True)),
         ]))
 
         self.num_resblock = num_resblock
         for i in range(num_resblock):
-            setattr(self, 'res'+str(i+1), ResBlock(ngf*4, use_bias=True))
+            setattr(self, 'res' + str(i + 1), ResBlock(ngf * 4, use_bias=True))
 
         self.deconv3 = nn.Sequential(OrderedDict([
-            ('deconv', nn.ConvTranspose2d(ngf*4, ngf*2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ngf*2)),
+            ('deconv',
+             nn.ConvTranspose2d(ngf * 4, ngf * 2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ngf * 2)),
             ('relu', nn.ReLU(True))
         ]))
         self.deconv2 = nn.Sequential(OrderedDict([
-            ('deconv', nn.ConvTranspose2d(ngf*2, ngf, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
+            ('deconv',
+             nn.ConvTranspose2d(ngf * 2, ngf, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
             ('bn', nn.InstanceNorm2d(ngf)),
             ('relu', nn.ReLU(True))
         ]))
@@ -72,7 +75,7 @@ class ResGenerator(nn.Module):
         x = self.conv2(x)
         x = self.conv3(x)
         for i in range(self.num_resblock):
-            res = getattr(self, 'res'+str(i+1))
+            res = getattr(self, 'res' + str(i + 1))
             x = res(x)
         x = self.deconv3(x)
         x = self.deconv2(x)
@@ -89,35 +92,35 @@ class DCDiscriminator(nn.Module):
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv2 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf, ndf*2, kernel_size=4, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*2)),
+            ('conv', nn.Conv2d(ndf, ndf * 2, kernel_size=4, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 2)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv3 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*2, ndf*4, kernel_size=4, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*4)),
+            ('conv', nn.Conv2d(ndf * 2, ndf * 4, kernel_size=4, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 4)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv4 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*4, ndf*8, kernel_size=4, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*8)),
+            ('conv', nn.Conv2d(ndf * 4, ndf * 8, kernel_size=4, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 8)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv5 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*8, ndf*8, kernel_size=4, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*8)),
+            ('conv', nn.Conv2d(ndf * 8, ndf * 8, kernel_size=4, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 8)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv6 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*8, ndf*8, kernel_size=4, stride=1, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*8)),
+            ('conv', nn.Conv2d(ndf * 8, ndf * 8, kernel_size=4, stride=1, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 8)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.dis = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*8, 1, kernel_size=1, stride=1, padding=0, bias=False)),
+            ('conv', nn.Conv2d(ndf * 8, 1, kernel_size=1, stride=1, padding=0, bias=False)),
         ]))
         self.att = nn.Sequential(OrderedDict([
-            ('fc1', nn.Linear(7*3*ndf*8, 1024)),
+            ('fc1', nn.Linear(7 * 3 * ndf * 8, 1024)),
             ('relu', nn.ReLU(True)),
             ('fc2', nn.Linear(1024, num_att))
         ]))
@@ -146,22 +149,22 @@ class PatchDiscriminator(nn.Module):
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv2 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf, ndf*2, kernel_size=4, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*2)),
+            ('conv', nn.Conv2d(ndf, ndf * 2, kernel_size=4, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 2)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv3 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*2, ndf*4, kernel_size=4, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*4)),
+            ('conv', nn.Conv2d(ndf * 2, ndf * 4, kernel_size=4, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 4)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.conv4 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*4, ndf*8, kernel_size=4, stride=1, padding=0, bias=True)),
-            ('bn', nn.InstanceNorm2d(ndf*8)),
+            ('conv', nn.Conv2d(ndf * 4, ndf * 8, kernel_size=4, stride=1, padding=0, bias=True)),
+            ('bn', nn.InstanceNorm2d(ndf * 8)),
             ('relu', nn.LeakyReLU(0.2, True))
         ]))
         self.dis = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(ndf*8, 1, kernel_size=4, stride=1, padding=0, bias=False)),
+            ('conv', nn.Conv2d(ndf * 8, 1, kernel_size=4, stride=1, padding=0, bias=False)),
         ]))
 
     def forward(self, x):

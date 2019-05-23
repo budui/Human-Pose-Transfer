@@ -1,18 +1,16 @@
-import os
 import itertools
+import os
 
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
-
 from ignite.engine import Engine, Events
 from ignite.metrics import RunningAverage
+from torch.utils.data import DataLoader
 
 from dataset.key_point_dataset import KeyPointDataset
 from models.DPIG import PoseDecoder, PoseEncoder
-from util.util import show_with_visibility as show_pose
 from train.common_handler import warp_common_handler
-
+from util.util import show_with_visibility as show_pose
 
 PRINT_FREQ = 200
 FAKE_IMG_FNAME = 'epoch_{:04d}.png'
@@ -62,8 +60,8 @@ def get_trainer(option, device):
 
     def add_message(engine):
         message = " | loss: {:.4f}".format(
-                engine.state.metrics["loss"],
-            )
+            engine.state.metrics["loss"],
+        )
         return message
 
     networks_to_save = dict(pose_encoder=pose_encoder, pose_decoder=pose_decoder)
@@ -83,11 +81,12 @@ def get_trainer(option, device):
             show_pose([
                 engine.state.output["origin_pose"],
                 engine.state.output["recon_pose"]
-                ],
+            ],
                 os.path.join(output_dir, VAL_IMG_FNAME.format(
                     engine.state.epoch, engine.state.iteration
                 ))
             )
+
     return trainer
 
 
