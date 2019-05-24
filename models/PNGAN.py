@@ -69,7 +69,7 @@ class ResGenerator(nn.Module):
             ('tanh', nn.Tanh())
         ]))
 
-    def forward(self, im, pose):
+    def forward(self, im, pose, num_ouput=None):
         x = torch.cat((im, pose), dim=1)
         x = self.conv1(x)
         x = self.conv2(x)
@@ -77,12 +77,12 @@ class ResGenerator(nn.Module):
         for i in range(self.num_resblock):
             res = getattr(self, 'res' + str(i + 1))
             x = res(x)
+            if not self.training and (i == num_ouput):
+                break
+            print(x.size())
         x = self.deconv3(x)
-        print(x.size())
         x = self.deconv2(x)
-        print(x.size())
         x = self.deconv1(x)
-        print(x.size())
         return x
 
 
@@ -290,10 +290,10 @@ class PAGenerator(nn.Module):
 
 def _test():
     attr = torch.randn([2, 27])
-    rg = PAGenerator()
+    rg = ResGenerator(64, 9)
     x = torch.randn([2, 3, 128, 64])
     p = torch.randn([2, 18, 128, 64])
-    y = rg(x, p, attr)
+    y = rg(x, p)
     print(y.size())
 
 

@@ -18,7 +18,7 @@ def select_generator(option, device):
         return get_generator(option.G1_path, option.G2_path, device)
     elif option.name == "PNGAN-Generate":
         from test.PNGAN import get_generator
-        return get_generator(option.g_path, option.num_res, device)
+        return get_generator(option.g_path, option.num_res, device, True)
     else:
         raise NotImplementedError("not implemented generate methods: {}".format(option.name))
 
@@ -36,11 +36,12 @@ def get_tester(option, device):
 
         for i in range(generated_imgs.size(0)):
             # image height and width
-            image_size = (generated_imgs.size(2), generated_imgs.size(3))
-            image = np.zeros((image_size[0], image_size[1] * 3, 3)).astype(np.uint8)
+            #image_size = (generated_imgs.size(2), generated_imgs.size(3))
+            image_size = (128, 64)
+            image = np.zeros((image_size[0], image_size[1] * 11, 3)).astype(np.uint8)
             image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2image(batch["P1"].data[i])
             image[:, 1 * image_size[1]:2 * image_size[1], :] = util.tensor2image(batch["P2"].data[i])
-            image[:, 2 * image_size[1]:3 * image_size[1], :] = util.tensor2image(generated_imgs.data[i])
+            image[:, 2 * image_size[1]:, :] = util.tensor2image(generated_imgs.data[i])
 
             if limit < 0:
                 image_path = os.path.join(output_dir, "{}___{}_vis.jpg".format(condition_names[i], target_names[i]))
