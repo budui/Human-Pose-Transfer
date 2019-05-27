@@ -129,7 +129,7 @@ def get_trainer(opt, device="cuda"):
                 "G_adv": g_adv_loss.item(),
                 "G_l1": g_l1_loss.item(),
                 "G_per": g_perceptual_loss.item(),
-                "G_ml1": g_perceptual_loss.item(),
+                "G_ml1": g_mask_l1_loss.item(),
                 "G": g_loss.item(),
                 "D": d_adv_loss.item()
             },

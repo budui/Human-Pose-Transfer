@@ -18,7 +18,7 @@ def select_generator(option, device):
         return get_generator(option.G1_path, option.G2_path, device)
     elif option.name == "PNGAN-Generate":
         from test.PNGAN import get_generator
-        return get_generator(option.g_path, option.num_res, device, True)
+        return get_generator(option.g_path, option.num_res, device, option.show_all)
     else:
         raise NotImplementedError("not implemented generate methods: {}".format(option.name))
 
@@ -38,7 +38,7 @@ def get_tester(option, device):
             # image height and width
             #image_size = (generated_imgs.size(2), generated_imgs.size(3))
             image_size = (128, 64)
-            image = np.zeros((image_size[0], image_size[1] * 11, 3)).astype(np.uint8)
+            image = np.zeros((image_size[0], image_size[1] * 2 + generated_imgs.size(3), 3)).astype(np.uint8)
             image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2image(batch["P1"].data[i])
             image[:, 1 * image_size[1]:2 * image_size[1], :] = util.tensor2image(batch["P2"].data[i])
             image[:, 2 * image_size[1]:, :] = util.tensor2image(generated_imgs.data[i])
@@ -82,6 +82,7 @@ def add_new_arg_for_parser(parser, name):
 
     elif name == "PNGAN-Generate":
         parser.add_argument("--g_path", type=str)
+        parser.add_argument("--show_all", type=bool, action="store_true")
         parser.add_argument('--num_res', type=int, default=9,
                             help="the number of res block in generator")
 
