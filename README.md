@@ -124,7 +124,7 @@ $ python evaluate/getMetrics_market.py
 
 ### PG2
 
-![PG2 result](./generated_images/PG2-origin.png)
+![PG2 result](doc/image/PG2-origin.png)
 
 ```bash
 # stage 1
