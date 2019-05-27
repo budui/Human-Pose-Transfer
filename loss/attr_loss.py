@@ -4,19 +4,18 @@ import torch.nn.functional as F
 from torch.nn import init
 from torchvision import models
 
-
 ATTR_NAMES = ["gender", "hair", "up", "down", "clothes", "hat", "backpack", "bag", "handbag", "age",
               "upblack", "upwhite", "upred", "uppurple", "upyellow", "upgray", "upblue", "upgreen",
               "downblack", "downwhite", "downpink", "downpurple", "downyellow", "downgray", "downblue",
               "downgreen", "downbrown"]
-ATTR_NUM_CLASS = [2]*9+[4]+[2]*17
+ATTR_NUM_CLASS = [2] * 9 + [4] + [2] * 17
 
 
 def weights_init_kaiming(m):
     classname = m.__class__.__name__
     # print(classname)
     if classname.find('Conv') != -1:
-        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in') # For old pytorch, you may use kaiming_normal.
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')  # For old pytorch, you may use kaiming_normal.
     elif classname.find('Linear') != -1:
         init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
         init.constant_(m.bias.data, 0.0)
@@ -48,7 +47,7 @@ class ClassBlock(nn.Module):
             add_block += [nn.BatchNorm1d(num_bottleneck)]
         if relu:
             add_block += [nn.LeakyReLU(0.1)]
-        if droprate>0:
+        if droprate > 0:
             add_block += [nn.Dropout(p=droprate)]
         add_block = nn.Sequential(*add_block)
         add_block.apply(weights_init_kaiming)
@@ -66,7 +65,7 @@ class ClassBlock(nn.Module):
         if self.return_f:
             f = x
             x = self.classifier(x)
-            return x,f
+            return x, f
         else:
             x = self.classifier(x)
             return x
@@ -110,20 +109,23 @@ class APR(nn.Module):
 class IDAttrLoss(nn.Module):
     def __init__(self, apr_path, device="cuda"):
         super(IDAttrLoss, self).__init__()
-
+        self.device = device
         var_std = torch.Tensor([0.229, 0.224, 0.225]).resize_(1, 3, 1, 1).to(device)
         var_mean = torch.Tensor([0.485, 0.456, 0.406]).resize_(1, 3, 1, 1).to(device)
         self.re_norm = lambda image: (((image + 1) / 2) - var_mean) / var_std
         self.apr = APR(dict(zip(ATTR_NAMES, ATTR_NUM_CLASS)), 751)
         self.apr.load_state_dict(torch.load(apr_path))
         self.apr.eval()
+        self.apr.to(device)
         self.loss_fn = nn.CrossEntropyLoss()
 
     def forward(self, generated_image, attr_labels):
         # [-1, 1] to [0, 1] then Normalize
-        generated_image_norm = self.re_norm(generated_image)
-        _, attrs_pred = self.apr(generated_image_norm)
+        generated_image_norm = F.interpolate(self.re_norm(generated_image), (256, 128))
+
+        with torch.no_grad():
+            _, attrs_pred = self.apr(generated_image_norm)
         attr_loss = {}
         for attr, pred in attrs_pred.items():
             attr_loss[attr] = self.loss_fn(pred, attr_labels[attr])
-        return sum(attr_loss.values())/len(attr_loss)
+        return sum(attr_loss.values()) / len(attr_loss)

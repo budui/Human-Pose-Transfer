@@ -4,15 +4,22 @@ import os
 
 import numpy
 import torch
+from scipy.io import loadmat
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets.folder import default_loader
-from scipy.io import loadmat
 
 DEFAULT_TRANS = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
+
+ATTR_NAMES = ["gender", "hair", "up", "down", "clothes", "hat", "backpack", "bag", "handbag", "age",
+              "upblack", "upwhite", "upred", "uppurple", "upyellow", "upgray", "upblue", "upgreen",
+              "downblack", "downwhite", "downpink", "downpurple", "downyellow", "downgray", "downblue",
+              "downgreen", "downbrown"]
+
+ATTR_NUM_CLASS = [2] * 9 + [4] + [2] * 17
 
 
 class BoneDataset(Dataset):
@@ -132,11 +139,9 @@ class AttrBoneDataset(BoneDataset):
     def __getitem__(self, idx):
         basic_items = super().__getitem__(idx)
         id1 = basic_items["P1_path"][:4]
-        id2 = basic_items["P2_path"][:4]
         attr_id1 = self.attrs[id1]
-        attr_id2 = self.attrs[id2]
 
-        basic_items.update({"P1_attr": attr_id1, "P2_attr": attr_id2})
+        basic_items.update({"attr": attr_id1})
         return basic_items
 
     def __repr__(self):
@@ -144,23 +149,23 @@ class AttrBoneDataset(BoneDataset):
             len(self), self.flip_rate, self.path
         )
 
-    def _make_attr_dict(self, t="test"):
+    def _make_attr_dict(self, t="train"):
         mat = self.mat[t][0][0]
         identities = mat["image_index"][0]
-        attrs_names = ["gender", "hair", "up", "down", "clothes", "hat", "backpack", "bag", "handbag", "age",
-                       "upblack", "upwhite", "upred", "uppurple", "upyellow", "upgray", "upblue", "upgreen",
-                       "downblack", "downwhite", "downpink", "downpurple", "downyellow", "downgray", "downblue",
-                       "downgreen", "downbrown"]
         attrs = {}
-        for an in attrs_names:
+        for an in ATTR_NAMES:
             attrs[an] = mat[an][0]
 
         attrs_per_id = {}
         for i, ids in enumerate(identities):
-            attrs_per_id[ids[0]] = torch.zeros([len(attrs_names)])
-            for j, an in enumerate(attrs_names):
-                attrs_per_id[ids[0]][j] = int(attrs[an][i])
+            attr_person = dict()
+            for num_c, an in zip(ATTR_NUM_CLASS, ATTR_NAMES):
+                attr_person[an] = int(attrs[an][i] - 1)
+                if attr_person[an] >= num_c or attr_person[an] < 0:
+                    raise ValueError("num classes")
+            attrs_per_id[ids[0]] = attr_person
         return attrs_per_id
+
 
 def _test():
     image_dataset = BoneDataset(

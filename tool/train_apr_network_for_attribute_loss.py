@@ -2,36 +2,34 @@ import os
 from argparse import ArgumentParser
 
 import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.optim as optim
-from torch.optim import lr_scheduler
-from torch.nn import init
-from torchvision import models
-from torch.utils.data import Dataset
-import torch.backends.cudnn as cudnn
-from torchvision.datasets.folder import default_loader
-from torchvision import transforms
-from ignite.engine import Events, Engine
-from ignite.metrics import Accuracy, RunningAverage
 from ignite.contrib.handlers import ProgressBar
+from ignite.engine import Events, Engine
 from ignite.handlers import ModelCheckpoint, Timer
-
+from ignite.metrics import Accuracy, RunningAverage
 from scipy.io import loadmat
-
+from torch.nn import init
+from torch.optim import lr_scheduler
+from torch.utils.data import Dataset
+from torchvision import models
+from torchvision import transforms
+from torchvision.datasets.folder import default_loader
 
 ATTR_NAMES = ["gender", "hair", "up", "down", "clothes", "hat", "backpack", "bag", "handbag", "age",
               "upblack", "upwhite", "upred", "uppurple", "upyellow", "upgray", "upblue", "upgreen",
               "downblack", "downwhite", "downpink", "downpurple", "downyellow", "downgray", "downblue",
               "downgreen", "downbrown"]
 
-ATTR_NUM_CLASS = [2]*9+[4]+[2]*17
+ATTR_NUM_CLASS = [2] * 9 + [4] + [2] * 17
 
 
 def weights_init_kaiming(m):
     classname = m.__class__.__name__
     # print(classname)
     if classname.find('Conv') != -1:
-        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in') # For old pytorch, you may use kaiming_normal.
+        init.kaiming_normal_(m.weight.data, a=0, mode='fan_in')  # For old pytorch, you may use kaiming_normal.
     elif classname.find('Linear') != -1:
         init.kaiming_normal_(m.weight.data, a=0, mode='fan_out')
         init.constant_(m.bias.data, 0.0)
@@ -63,7 +61,7 @@ class ClassBlock(nn.Module):
             add_block += [nn.BatchNorm1d(num_bottleneck)]
         if relu:
             add_block += [nn.LeakyReLU(0.1)]
-        if droprate>0:
+        if droprate > 0:
             add_block += [nn.Dropout(p=droprate)]
         add_block = nn.Sequential(*add_block)
         add_block.apply(weights_init_kaiming)
@@ -81,7 +79,7 @@ class ClassBlock(nn.Module):
         if self.return_f:
             f = x
             x = self.classifier(x)
-            return x,f
+            return x, f
         else:
             x = self.classifier(x)
             return x
@@ -214,7 +212,7 @@ def get_trainer(opt, device="cuda"):
         for attr, pred in attrs_pred.items():
             attr_loss[attr] = loss_fn(pred, attr_labels[attr])
 
-        total_loss = 8 * id_loss + sum(attr_loss.values())/len(attr_loss)
+        total_loss = 8 * id_loss + sum(attr_loss.values()) / len(attr_loss)
         optimizer.zero_grad()
         total_loss.backward()
         optimizer.step()
@@ -278,7 +276,7 @@ def get_trainer(opt, device="cuda"):
         for m, v in engine.state.metrics.items():
             if "loss" in m:
                 continue
-            opf += "{}:{:2.4f} ".format(m,v)
+            opf += "{}:{:2.4f} ".format(m, v)
         pbar.log_message(opf)
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, print_log)
@@ -291,7 +289,7 @@ def get_data_loader(opt, device="cuda"):
         opt.market1501,
         "data/market/attribute/market_attribute.mat",
         transforms.Compose([
-            transforms.Resize(size=(256,128),interpolation=3), #Image.BICUBIC
+            transforms.Resize(size=(256, 128), interpolation=3),  # Image.BICUBIC
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
@@ -309,7 +307,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="attr_loss/")
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument("--save_interval", default=5, type=int, help="models will be saved to disk "
-                                                                        "every save_interval calls to the handler.")
+                                                                     "every save_interval calls to the handler.")
     parser.add_argument("--n_saved", default=10, type=int, help="Number of models that should be kept on disk. "
                                                                 "Older files will be removed.")
     parser.add_argument('--market1501', type=str, default="/data/Market-1501-v15.09.15/")

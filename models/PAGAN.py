@@ -2,6 +2,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+
 from models.PNGAN import ResBlock
 
 
@@ -11,8 +12,8 @@ class PABlock(nn.Module):
         self.res1 = ResBlock(num_channels)
         self.res2 = ResBlock(num_channels)
         self.conv = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(num_channels, num_channels*2, kernel_size=3, stride=2, padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(num_channels*2)),
+            ('conv', nn.Conv2d(num_channels, num_channels * 2, kernel_size=3, stride=2, padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(num_channels * 2)),
             ('relu', nn.ReLU(inplace=True)),
         ]))
 
@@ -30,23 +31,23 @@ class AU(nn.Module):
         self.line_emb = nn.Linear(1, num_channels, bias=False)
         self.softmax = nn.Softmax(dim=softmax_dim)
         self.conv = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(num_channels*2, num_channels, kernel_size=3, stride=1, padding=1, bias=use_bias)),
-            ('bn', nn.InstanceNorm2d(num_channels*2)),
+            ('conv', nn.Conv2d(num_channels * 2, num_channels, kernel_size=3, stride=1, padding=1, bias=use_bias)),
+            ('bn', nn.InstanceNorm2d(num_channels * 2)),
             ('relu', nn.ReLU(inplace=True)),
         ]))
         self.deconv = nn.Sequential(OrderedDict([
             ('deconv',
              nn.ConvTranspose2d(
                  (num_channels * 2) if not is_first else num_channels,
-                 int(num_channels*0.5), kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
-            ('bn', nn.InstanceNorm2d(int(num_channels*0.5))),
+                 int(num_channels * 0.5), kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(int(num_channels * 0.5))),
             ('relu', nn.ReLU(True))
         ]))
 
     def forward(self, attr, img_f, pose_f, u=None):
-        attr = attr.view(attr.size(0), -1, 1) # bs*27*1
-        semantic_attr_t = self.line_emb(attr) # bs*27*nc
-        img_f = img_f.view(img_f.size(0), img_f.size(1), -1) # bs*nc*(nh*nw)
+        attr = attr.view(attr.size(0), -1, 1)  # bs*27*1
+        semantic_attr_t = self.line_emb(attr)  # bs*27*nc
+        img_f = img_f.view(img_f.size(0), img_f.size(1), -1)  # bs*nc*(nh*nw)
         semantic_attr = torch.transpose(semantic_attr_t, 1, 2)
 
         tm = torch.matmul(semantic_attr_t, img_f)
@@ -72,8 +73,8 @@ class PAGenerator(nn.Module):
             ('relu', nn.ReLU(inplace=True)),
         ]))
         self.pa1 = PABlock(ngf)
-        self.pa2 = PABlock(ngf*2)
-        self.pa3 = PABlock(ngf*4)
+        self.pa2 = PABlock(ngf * 2)
+        self.pa3 = PABlock(ngf * 4)
 
         self.conv_p = nn.Sequential(OrderedDict([
             ('pad', nn.ReflectionPad2d(3)),
@@ -85,10 +86,10 @@ class PAGenerator(nn.Module):
         self.pa2_p = PABlock(ngf * 2)
         self.pa3_p = PABlock(ngf * 4)
 
-        self.au1 = AU(ngf*8, is_first=True)
+        self.au1 = AU(ngf * 8, is_first=True)
 
-        self.au2 = AU(ngf*4)
-        self.au3 = AU(ngf*2)
+        self.au2 = AU(ngf * 4)
+        self.au3 = AU(ngf * 2)
         print(self.au3)
 
         self.deconv = nn.Sequential(OrderedDict([

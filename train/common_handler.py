@@ -75,7 +75,7 @@ def make_handle_make_dirs(output_dir, fnames):
 
 def make_move_html(output_dir):
     def move_html(engine):
-        copyfile("./util/show_result.html", os.path.join(output_dir, "index.html"))
+        copyfile("./tool/html/train_info.html", os.path.join(output_dir, "index.html"))
 
     return move_html
 

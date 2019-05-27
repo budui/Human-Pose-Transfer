@@ -23,4 +23,5 @@ def get_generator(path, num_res, device="cuda", generate_all=False):
             generated_imgs = G(condition_img, target_pose)
         generated_imgs.clamp_(-1, 1)
         return generated_imgs
+
     return generator

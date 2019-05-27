@@ -9,6 +9,7 @@ from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 
 import dataset.bone_dataset as dataset
+from loss.attr_loss import IDAttrLoss
 from loss.mask_l1 import MaskL1Loss
 from loss.perceptual_loss import PerceptualLoss
 from models import PNGAN
@@ -54,6 +55,10 @@ def get_trainer(opt, device="cuda"):
         print("use l1_loss")
         l1_loss = nn.L1Loss().to(device)
 
+    if opt.attr_loss > 0:
+        print("use attr_loss")
+        attr_loss = IDAttrLoss(opt.arp_path)
+
     if opt.mask_l1_loss > 0:
         print("use mask_l1_loss")
         mask_l1_loss = MaskL1Loss().to(device)
@@ -88,6 +93,11 @@ def get_trainer(opt, device="cuda"):
         else:
             g_l1_loss = fake_loss
 
+        if opt.attr_loss > 0:
+            g_attr_loss = attr_loss(generated_img, batch["attr"])
+        else:
+            g_attr_loss = fake_loss
+
         if opt.perceptual_loss > 0:
             g_perceptual_loss = perceptual_loss(generated_img, target_img)
         else:
@@ -96,7 +106,8 @@ def get_trainer(opt, device="cuda"):
         g_loss = g_adv_loss + \
                  g_l1_loss * opt.l1_loss + \
                  g_mask_l1_loss * opt.mask_l1_loss + \
-                 g_perceptual_loss * opt.perceptual_loss
+                 g_perceptual_loss * opt.perceptual_loss + \
+                 g_attr_loss * opt.attr_loss
 
         optimizer_G.zero_grad()
         g_loss.backward()
@@ -130,6 +141,7 @@ def get_trainer(opt, device="cuda"):
                 "G_l1": g_l1_loss.item(),
                 "G_per": g_perceptual_loss.item(),
                 "G_ml1": g_mask_l1_loss.item(),
+                "G_attr": g_attr_loss.item(),
                 "G": g_loss.item(),
                 "D": d_adv_loss.item()
             },
@@ -164,6 +176,8 @@ def get_trainer(opt, device="cuda"):
         RunningAverage(output_transform=lambda x: x["loss"]['G_ml1']).attach(trainer, 'loss_G_ml1')
     if opt.l1_loss:
         RunningAverage(output_transform=lambda x: x["loss"]['G_l1']).attach(trainer, 'loss_G_l1')
+    if opt.attr_loss:
+        RunningAverage(output_transform=lambda x: x["loss"]['G_attr']).attach(trainer, 'loss_G_attr')
 
     networks_to_save = dict(G=G, D=D)
 
@@ -238,6 +252,8 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--perceptual_loss', type=float, default=10)
     parser.add_argument('--perceptual_layers', type=int, default=3,
                         help=" perceptual layers of perceptual_loss")
+    parser.add_argument('--attr_loss', type=float, default=1)
+    parser.add_argument('--arp_path', type=str, default="./data/net_ARP.pth")
 
     parser.add_argument('--num_res', type=int, default=9,
                         help="the number of res block in generator")

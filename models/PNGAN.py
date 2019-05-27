@@ -85,7 +85,6 @@ class ResGenerator(nn.Module):
         return x
 
 
-
 class DCDiscriminator(nn.Module):
     def __init__(self, ndf, num_att):
         super(DCDiscriminator, self).__init__()

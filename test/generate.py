@@ -36,7 +36,7 @@ def get_tester(option, device):
 
         for i in range(generated_imgs.size(0)):
             # image height and width
-            #image_size = (generated_imgs.size(2), generated_imgs.size(3))
+            # image_size = (generated_imgs.size(2), generated_imgs.size(3))
             image_size = (128, 64)
             image = np.zeros((image_size[0], image_size[1] * 2 + generated_imgs.size(3), 3)).astype(np.uint8)
             image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2image(batch["P1"].data[i])
@@ -65,7 +65,7 @@ def get_tester(option, device):
     def show(engine):
         if limit > 0:
             engine.state.idx = 1
-            copyfile("./util/show_generated.html", os.path.join(output_dir, "index.html"))
+            copyfile("./util/compare_result.html", os.path.join(output_dir, "index.html"))
             with open(os.path.join(output_dir, "data.json"), "w") as data_f:
                 json.dump({"limit": option.limit}, data_f)
 
