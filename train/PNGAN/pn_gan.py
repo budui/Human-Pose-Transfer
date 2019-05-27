@@ -12,7 +12,7 @@ import dataset.bone_dataset as dataset
 from loss.attr_loss import IDAttrLoss
 from loss.mask_l1 import MaskL1Loss
 from loss.perceptual_loss import PerceptualLoss
-from models import PNGAN
+from models import PNGAN, PATN
 from models.PG2 import weights_init_normal
 from train.common_handler import warp_common_handler
 from train.helper import move_data_pair_to
@@ -40,16 +40,22 @@ def _get_val_data_pairs(option, device):
 def get_trainer(opt, device="cuda"):
     G = PNGAN.ResGenerator(64, opt.num_res)
     D = PNGAN.PatchDiscriminator(64)
+    DB = PATN.ResnetDiscriminator(3+18, gpu_ids=[opt.gpu_id], n_blocks=3, use_sigmoid=False)
     D.apply(weights_init_normal)
+    G.apply(weights_init_normal)
+    DB.apply(weights_init_normal)
     G.to(device)
     D.to(device)
+    DB.to(device)
 
     optimizer_G = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
     optimizer_D = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizer_DB = optim.Adam(DB.parameters(), lr=0.0002, betas=(0.5, 0.999))
 
     lr_policy = lambda epoch: (1 - 1 * max(0, epoch - opt.de_epoch) / opt.de_epoch)
     scheduler_G = lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_policy)
     scheduler_D = lr_scheduler.LambdaLR(optimizer_D, lr_lambda=lr_policy)
+    scheduler_DB = lr_scheduler.LambdaLR(optimizer_DB, lr_lambda=lr_policy)
 
     if opt.l1_loss > 0:
         print("use l1_loss")
@@ -81,7 +87,9 @@ def get_trainer(opt, device="cuda"):
 
         generated_img = G(condition_img, target_pose)
         pred_real_g = D(generated_img, condition_img)
+        pred_real_g_b = DB(torch.cat([generated_img, target_pose], dim=1))
         g_adv_loss = gan_loss(pred_real_g, torch.ones_like(pred_real_g))
+        g_adv_loss_b = gan_loss(pred_real_g_b, torch.ones_like(pred_real_g_b))
 
         if opt.mask_l1_loss > 0:
             g_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
@@ -103,7 +111,7 @@ def get_trainer(opt, device="cuda"):
         else:
             g_perceptual_loss = fake_loss
 
-        g_loss = g_adv_loss + \
+        g_loss = g_adv_loss + g_adv_loss_b +\
                  g_l1_loss * opt.l1_loss + \
                  g_mask_l1_loss * opt.mask_l1_loss + \
                  g_perceptual_loss * opt.perceptual_loss + \
@@ -125,6 +133,18 @@ def get_trainer(opt, device="cuda"):
         d_adv_loss.backward()
         optimizer_D.step()
 
+        pred_fake_db = DB(torch.cat([generated_img.detach(), target_pose], dim=1))
+        pred_real_db = DB(torch.cat([target_img, target_pose], dim=1))
+
+        g_adv_real_loss_b = gan_loss(pred_real_db, torch.ones_like(pred_real_db))
+        g_adv_fake_loss_b = gan_loss(pred_fake_db, torch.zeros_like(pred_fake_db))
+
+        d_adv_loss_b = (g_adv_fake_loss_b + g_adv_real_loss_b) * 0.5
+
+        optimizer_DB.zero_grad()
+        d_adv_loss_b.backward()
+        optimizer_DB.step()
+
         if engine.state.iteration % opt.print_freq == 0:
             path = os.path.join(opt.output_dir, VAL_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
             get_current_visuals(path, batch, [generated_img])
@@ -134,7 +154,8 @@ def get_trainer(opt, device="cuda"):
                 # cause we do sigmoid in loss, here we must use sigmoid again.
                 "G_real": torch.sigmoid(pred_real_g).mean().item(),
                 "D_fake": torch.sigmoid(pred_fake_d).mean().item(),
-                "D_real": torch.sigmoid(pred_real_d).mean().item()
+                "D_real": torch.sigmoid(pred_real_d).mean().item(),
+                "DB_real": torch.sigmoid(pred_real_db).mean().item()
             },
             "loss": {
                 "G_adv": g_adv_loss.item(),
@@ -156,6 +177,7 @@ def get_trainer(opt, device="cuda"):
         print(optimizer_G.param_groups[0]["lr"])
         scheduler_G.step()
         scheduler_D.step()
+        scheduler_DB.step()
         print(optimizer_D.param_groups[0]["lr"])
         print(optimizer_G.param_groups[0]["lr"])
         print("-----------scheduler------over----------")
@@ -165,6 +187,7 @@ def get_trainer(opt, device="cuda"):
     RunningAverage(output_transform=lambda x: x["pred"]['G_real']).attach(trainer, 'pred_G_real')
     RunningAverage(output_transform=lambda x: x["pred"]['D_fake']).attach(trainer, 'pred_D_fake')
     RunningAverage(output_transform=lambda x: x["pred"]['D_real']).attach(trainer, 'pred_D_real')
+    RunningAverage(output_transform=lambda x: x["pred"]['DB_real']).attach(trainer, 'pred_DB_real')
 
     RunningAverage(output_transform=lambda x: x["loss"]['G']).attach(trainer, 'loss_G')
     RunningAverage(output_transform=lambda x: x["loss"]['D']).attach(trainer, 'loss_D')
