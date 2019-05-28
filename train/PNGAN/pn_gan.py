@@ -15,9 +15,10 @@ from loss.perceptual_loss import PerceptualLoss
 from models import PNGAN, PATN
 from models.PG2 import weights_init_normal
 from train.common_handler import warp_common_handler
-from train.helper import move_data_pair_to
+from train.helper import move_data_pair_to, LossContainer, attach_engine
 from util.arg_parse import bool_arg
 from util.util import get_current_visuals
+from util.image_pool import ImagePool
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
@@ -40,43 +41,29 @@ def _get_val_data_pairs(option, device):
 def get_trainer(opt, device="cuda"):
     G = PNGAN.ResGenerator(64, opt.num_res)
     D = PNGAN.PatchDiscriminator(64)
-    DB = PATN.ResnetDiscriminator(3+18, gpu_ids=[opt.gpu_id], n_blocks=3, use_sigmoid=False)
     D.apply(weights_init_normal)
     G.apply(weights_init_normal)
-    DB.apply(weights_init_normal)
     G.to(device)
     D.to(device)
-    DB.to(device)
-
     optimizer_G = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
     optimizer_D = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999))
-    optimizer_DB = optim.Adam(DB.parameters(), lr=0.0002, betas=(0.5, 0.999))
-
     lr_policy = lambda epoch: (1 - 1 * max(0, epoch - opt.de_epoch) / opt.de_epoch)
     scheduler_G = lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_policy)
     scheduler_D = lr_scheduler.LambdaLR(optimizer_D, lr_lambda=lr_policy)
-    scheduler_DB = lr_scheduler.LambdaLR(optimizer_DB, lr_lambda=lr_policy)
 
-    if opt.l1_loss > 0:
-        print("use l1_loss")
-        l1_loss = nn.L1Loss().to(device)
+    if opt.use_db:
+        DB = PATN.ResnetDiscriminator(3 + 18, gpu_ids=[opt.gpu_id], n_blocks=3, use_sigmoid=False)
+        DB.apply(weights_init_normal)
+        DB.to(device)
+        optimizer_DB = optim.Adam(DB.parameters(), lr=0.0002, betas=(0.5, 0.999))
+        scheduler_DB = lr_scheduler.LambdaLR(optimizer_DB, lr_lambda=lr_policy)
+        fake_pb_pool = ImagePool(50)
 
-    if opt.attr_loss > 0:
-        print("use attr_loss")
-        attr_loss = IDAttrLoss(opt.arp_path)
-
-    if opt.mask_l1_loss > 0:
-        print("use mask_l1_loss")
-        mask_l1_loss = MaskL1Loss().to(device)
-
-    if opt.perceptual_loss > 0:
-        print("use perceptual_loss")
-        perceptual_loss = PerceptualLoss(opt.perceptual_layers, device)
-        print(perceptual_loss)
-
-    gan_loss = nn.MSELoss().to(device)
-
-    fake_loss = torch.zeros([1], device=device, requires_grad=False, dtype=torch.float)
+    l1_loss = LossContainer(nn.L1Loss(), opt.l1_loss)
+    mask_l1_loss = LossContainer(MaskL1Loss(), opt.mask_l1_loss)
+    attr_loss = LossContainer(IDAttrLoss(opt.arp_path), opt.attr_loss)
+    perceptual_loss = LossContainer(PerceptualLoss(opt.perceptual_layers, device), opt.perceptual_loss)
+    gan_loss = nn.MSELoss()
 
     def step(engine, batch):
         move_data_pair_to(device, batch)
@@ -86,89 +73,115 @@ def get_trainer(opt, device="cuda"):
         target_mask = batch["MP2"]
 
         generated_img = G(condition_img, target_pose)
-        pred_real_g = D(generated_img, condition_img)
-        pred_real_g_b = DB(torch.cat([generated_img, target_pose], dim=1))
-        g_adv_loss = gan_loss(pred_real_g, torch.ones_like(pred_real_g))
-        g_adv_loss_b = gan_loss(pred_real_g_b, torch.ones_like(pred_real_g_b))
 
-        if opt.mask_l1_loss > 0:
-            g_mask_l1_loss = mask_l1_loss(generated_img, target_img, target_mask)
-        else:
-            g_mask_l1_loss = fake_loss
+        pred = {"g_pp": D(generated_img, condition_img)}
 
-        if opt.l1_loss > 0:
-            g_l1_loss = l1_loss(generated_img, target_img)
-        else:
-            g_l1_loss = fake_loss
+        _generator_loss = {
+            "adv":  gan_loss(pred["g_pp"], torch.ones_like(pred["g_pp"])),
+            "mask_l1": mask_l1_loss(generated_img, target_img, target_mask),
+            "l1": l1_loss(generated_img, target_img),
+            "attr": attr_loss(generated_img, batch["attr"]),
+            "perceptual": perceptual_loss(generated_img, target_img)
+        }
 
-        if opt.attr_loss > 0:
-            g_attr_loss = attr_loss(generated_img, batch["attr"])
-        else:
-            g_attr_loss = fake_loss
+        if opt.use_db:
+            pred["g_pb"] = DB(torch.cat([generated_img, target_pose], dim=1))
+            _generator_loss["adv_pb"] = gan_loss(pred["g_pb"], torch.ones_like(pred["g_pb"]))
 
-        if opt.perceptual_loss > 0:
-            g_perceptual_loss = perceptual_loss(generated_img, target_img)
-        else:
-            g_perceptual_loss = fake_loss
-
-        g_loss = g_adv_loss + g_adv_loss_b +\
-                 g_l1_loss * opt.l1_loss + \
-                 g_mask_l1_loss * opt.mask_l1_loss + \
-                 g_perceptual_loss * opt.perceptual_loss + \
-                 g_attr_loss * opt.attr_loss
+        generator_loss = sum(_generator_loss.values())
 
         optimizer_G.zero_grad()
-        g_loss.backward()
+        generator_loss.backward()
         optimizer_G.step()
 
-        pred_fake_d = D(generated_img.detach(), condition_img)
-        pred_real_d = D(target_img, condition_img)
+        pred["d_pp_fake"] = D(generated_img.detach(), condition_img)
+        pred["d_pp_real"] = D(target_img, condition_img)
 
-        g_adv_real_loss = gan_loss(pred_real_d, torch.ones_like(pred_real_d))
-        g_adv_fake_loss = gan_loss(pred_fake_d, torch.zeros_like(pred_fake_d))
+        _pp_discriminator_loss = {
+            "real": gan_loss(pred["d_pp_real"], torch.ones_like(pred["d_pp_real"])),
+            "fake": gan_loss(pred["d_pp_fake"], torch.zeros_like(pred["d_pp_fake"]))
+        }
 
-        d_adv_loss = (g_adv_fake_loss + g_adv_real_loss) * 0.5
+        pp_discriminator_loss = sum(_pp_discriminator_loss.values())/len(_pp_discriminator_loss)
 
         optimizer_D.zero_grad()
-        d_adv_loss.backward()
+        pp_discriminator_loss.backward()
         optimizer_D.step()
 
-        pred_fake_db = DB(torch.cat([generated_img.detach(), target_pose], dim=1))
-        pred_real_db = DB(torch.cat([target_img, target_pose], dim=1))
+        output = {
+            "pred": {k: torch.sigmoid(v).mean().item() for k, v in pred.items()},
+            "loss": {
+                "g": {k: v.item() for k, v in _generator_loss.items()},
+                "pp": {k: v.item() for k, v in _pp_discriminator_loss.items()},
+                "g_total": generator_loss.item(),
+                "pp_total": pp_discriminator_loss.item()
+            },
+        }
 
-        g_adv_real_loss_b = gan_loss(pred_real_db, torch.ones_like(pred_real_db))
-        g_adv_fake_loss_b = gan_loss(pred_fake_db, torch.zeros_like(pred_fake_db))
+        if opt.use_db:
+            pred["d_pb_fake"] = DB(fake_pb_pool.query(torch.cat([generated_img.detach(), target_pose], dim=1).data))
+            pred["d_pb_real"] = DB(torch.cat([target_img, target_pose], dim=1))
 
-        d_adv_loss_b = (g_adv_fake_loss_b + g_adv_real_loss_b) * 0.5
+            _pb_discriminator_loss = {
+                "real": gan_loss(pred["d_pb_real"], torch.ones_like(pred["d_pb_real"])),
+                "fake": gan_loss(pred["d_pb_fake"], torch.zeros_like(pred["d_pb_fake"]))
+            }
 
-        optimizer_DB.zero_grad()
-        d_adv_loss_b.backward()
-        optimizer_DB.step()
+            pb_discriminator_loss = sum(_pb_discriminator_loss.values()) / len(_pb_discriminator_loss)
+
+            optimizer_DB.zero_grad()
+            pb_discriminator_loss.backward()
+            optimizer_DB.step()
+
+            output["loss"]["pb"] = {k: v.item() for k, v in _pb_discriminator_loss.items()}
+            output["loss"]["pb_total"] = pb_discriminator_loss.item()
 
         if engine.state.iteration % opt.print_freq == 0:
             path = os.path.join(opt.output_dir, VAL_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
             get_current_visuals(path, batch, [generated_img])
 
-        return {
-            "pred": {
-                # cause we do sigmoid in loss, here we must use sigmoid again.
-                "G_real": torch.sigmoid(pred_real_g).mean().item(),
-                "D_fake": torch.sigmoid(pred_fake_d).mean().item(),
-                "D_real": torch.sigmoid(pred_real_d).mean().item(),
-                "DB_real": torch.sigmoid(pred_real_db).mean().item()
-            },
-            "loss": {
-                "G_adv": g_adv_loss.item(),
-                "G_l1": g_l1_loss.item(),
-                "G_per": g_perceptual_loss.item(),
-                "G_ml1": g_mask_l1_loss.item(),
-                "G_attr": g_attr_loss.item(),
-                "G": g_loss.item(),
-                "D": d_adv_loss.item()
-            },
-        }
+        return output
 
     trainer = Engine(step)
+
+    # attach running average metrics
+    monitoring_metrics = ['loss_g_total', "loss_pp_total"]
+
+    pred_names = ["g_pp", "d_pp_fake", "d_pp_real"]
+    total_loss_names = ["g_total", "pp_total"]
+    g_loss_names = ["adv", "mask_l1", "l1", "attr", "perceptual"]
+
+    if opt.use_db:
+        monitoring_metrics += ['loss_pb_total']
+        pred_names += ["g_pb", "d_pb_fake", "d_pb_real"]
+        total_loss_names += ["pb_total"]
+        g_loss_names += ["adv_pb"]
+
+    running_averages = {"pred_{}".format(pn): lambda x: x["pred"][pn] for pn in pred_names}
+    running_averages.update({"loss_g_{}".format(n): lambda x: x["loss"]["g"][n] for n in g_loss_names})
+    running_averages.update({"loss_{}".format(ln): lambda x: x["loss"][ln] for ln in total_loss_names})
+    running_averages.update({"loss_pp_{}".format(n): lambda x: x["loss"]["pp"][n] for n in ("real", "fake")})
+    if opt.use_db:
+        running_averages.update({"loss_pb_{}".format(n): lambda x: x["loss"]["pb"][n] for n in ("real", "fake")})
+
+    attach_engine(trainer, running_averages)
+
+    networks_to_save = dict(G=G, D=D)
+
+    def add_message(engine):
+        message = ""
+        for mm in monitoring_metrics + ['pred_g_pp', "pred_d_pp_fake"]:
+            message += "<{}: {:.3f}> ".format(mm, engine.state.metrics[mm])
+        return message
+
+    warp_common_handler(
+        trainer,
+        opt,
+        networks_to_save,
+        monitoring_metrics,
+        add_message,
+        [FAKE_IMG_FNAME, VAL_IMG_FNAME]
+    )
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def adjust_learning_rate(engine):
@@ -182,54 +195,7 @@ def get_trainer(opt, device="cuda"):
         print(optimizer_G.param_groups[0]["lr"])
         print("-----------scheduler------over----------")
 
-    # attach running average metrics
-    monitoring_metrics = ['pred_G_real', 'pred_D_real', 'loss_G', 'loss_D']
-    RunningAverage(output_transform=lambda x: x["pred"]['G_real']).attach(trainer, 'pred_G_real')
-    RunningAverage(output_transform=lambda x: x["pred"]['D_fake']).attach(trainer, 'pred_D_fake')
-    RunningAverage(output_transform=lambda x: x["pred"]['D_real']).attach(trainer, 'pred_D_real')
-    RunningAverage(output_transform=lambda x: x["pred"]['DB_real']).attach(trainer, 'pred_DB_real')
-
-    RunningAverage(output_transform=lambda x: x["loss"]['G']).attach(trainer, 'loss_G')
-    RunningAverage(output_transform=lambda x: x["loss"]['D']).attach(trainer, 'loss_D')
-    RunningAverage(output_transform=lambda x: x["loss"]['G_adv']).attach(trainer, 'loss_G_adv')
-
-    if opt.perceptual_loss:
-        RunningAverage(output_transform=lambda x: x["loss"]['G_per']).attach(trainer, 'loss_G_per')
-    if opt.mask_l1_loss:
-        RunningAverage(output_transform=lambda x: x["loss"]['G_ml1']).attach(trainer, 'loss_G_ml1')
-    if opt.l1_loss:
-        RunningAverage(output_transform=lambda x: x["loss"]['G_l1']).attach(trainer, 'loss_G_l1')
-    if opt.attr_loss:
-        RunningAverage(output_transform=lambda x: x["loss"]['G_attr']).attach(trainer, 'loss_G_attr')
-
-    networks_to_save = dict(G=G, D=D)
-
-    def add_message(engine):
-        message = " | G(total/adv): {:.3f}/{:.3f}".format(
-            engine.state.metrics["loss_G"],
-            engine.state.metrics["loss_G_adv"],
-        )
-        message += " | D(adv): {:.3f}".format(
-            engine.state.metrics["loss_D"],
-        )
-        message += " | Pred(Gr/Df/Dr/): {:.3f}/{:.3f}/{:.3f}".format(
-            engine.state.metrics["pred_G_real"],
-            engine.state.metrics["pred_D_fake"],
-            engine.state.metrics["pred_D_real"]
-        )
-        return message
-
-    warp_common_handler(
-        trainer,
-        opt,
-        networks_to_save,
-        monitoring_metrics,
-        add_message,
-        [FAKE_IMG_FNAME, VAL_IMG_FNAME]
-    )
-
     val_data_pairs = _get_val_data_pairs(opt, device)
-
     @trainer.on(Events.ITERATION_COMPLETED)
     def save_example(engine):
         if engine.state.iteration > 0 and engine.state.iteration % opt.print_freq == 0:
@@ -268,6 +234,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--train_pair_path', type=str, default="data/market/pairs-train.csv")
     parser.add_argument('--test_pair_path', type=str, default="data/market/pairs-test.csv")
     parser.add_argument('--replacement', default=False, type=bool_arg)
+    parser.add_argument('--use_db', default=True, type=bool_arg)
     parser.add_argument('--flip_rate', type=float, default=0.5)
 
     parser.add_argument('--mask_l1_loss', type=float, default=10)

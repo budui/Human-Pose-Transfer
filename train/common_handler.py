@@ -50,7 +50,7 @@ def make_handle_create_plots(output_dir, logs_path, plot_path):
         if engine.state.iteration % 1000 == 0:
             df = pd.read_csv(os.path.join(output_dir, logs_path), delimiter='\t')
             # x = np.arange(1, engine.state.epoch * engine.state.iteration + 1, PRINT_FREQ)
-            _ = df.plot(subplots=True, figsize=(10, 10))
+            _ = df.plot(subplots=True, figsize=(10, 20))
             _ = plt.xlabel('Iteration number')
             fig = plt.gcf()
             path = os.path.join(output_dir, plot_path)
