@@ -11,7 +11,7 @@ import dataset.bone_dataset as dataset
 from loss.attr_loss import IDAttrLoss
 from loss.mask_l1 import MaskL1Loss
 from loss.perceptual_loss import PerceptualLoss
-from models import PNGAN, PATN
+from models import PNGAN, PATN, PAGAN
 from models.PG2 import weights_init_normal
 from train.common_handler import warp_common_handler
 from train.helper import move_data_pair_to, LossContainer, attach_engine
@@ -38,7 +38,7 @@ def _get_val_data_pairs(option, device):
 
 
 def get_trainer(opt, device="cuda"):
-    G = PNGAN.ResGenerator(64, opt.num_res)
+    G = PAGAN.PAGenerator()
     D = PNGAN.PatchDiscriminator(64)
     D.apply(weights_init_normal)
     G.apply(weights_init_normal)

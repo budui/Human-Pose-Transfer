@@ -45,16 +45,16 @@ class AU(nn.Module):
         ]))
 
     def forward(self, attr, img_f, pose_f, u=None):
-        attr = attr.view(attr.size(0), -1, 1)  # bs*27*1
-        semantic_attr_t = self.line_emb(attr)  # bs*27*nc
-        img_f = img_f.view(img_f.size(0), img_f.size(1), -1)  # bs*nc*(nh*nw)
-        semantic_attr = torch.transpose(semantic_attr_t, 1, 2)
+        # attr = attr.view(attr.size(0), -1, 1)  # bs*27*1
+        # semantic_attr_t = self.line_emb(attr)  # bs*27*nc
+        # img_f = img_f.view(img_f.size(0), img_f.size(1), -1)  # bs*nc*(nh*nw)
+        # semantic_attr = torch.transpose(semantic_attr_t, 1, 2)
+        #
+        # tm = torch.matmul(semantic_attr_t, img_f)
+        # fattn = torch.matmul(semantic_attr, self.softmax(tm))
+        # fattn = fattn.view(pose_f.size())
 
-        tm = torch.matmul(semantic_attr_t, img_f)
-        fattn = torch.matmul(semantic_attr, self.softmax(tm))
-        fattn = fattn.view(pose_f.size())
-
-        x = torch.cat([fattn, pose_f], dim=1)
+        x = torch.cat([img_f, pose_f], dim=1)
         x = self.conv(x)
         if self.is_first:
             x = self.deconv(x)
@@ -64,7 +64,7 @@ class AU(nn.Module):
 
 
 class PAGenerator(nn.Module):
-    def __init__(self, pose_input_channels=18, num_block=3, ngf=64):
+    def __init__(self, pose_input_channels=18*2, num_block=3, ngf=64):
         super(PAGenerator, self).__init__()
         self.conv = nn.Sequential(OrderedDict([
             ('pad', nn.ReflectionPad2d(3)),
@@ -98,7 +98,8 @@ class PAGenerator(nn.Module):
             ('tanh', nn.Tanh())
         ]))
 
-    def forward(self, img, pose, attr):
+    def forward(self, img, pose):
+        attr = None
         v1 = self.pa1(self.conv(img))
         v2 = self.pa2(v1)
         v3 = self.pa3(v2)

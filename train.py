@@ -10,7 +10,8 @@ IMPLEMENTED_TRAIN_ENGINE = [
     "DPIG-1-Pose",
     "PG2-2",
     "PG2-1",
-    "PNGAN"
+    "PNGAN",
+    "PAGAN"
 ]
 
 
@@ -23,6 +24,8 @@ def select_train(name):
         from train.PG2 import stage_1 as train
     elif name == IMPLEMENTED_TRAIN_ENGINE[3]:
         from train.PNGAN import pn_gan as train
+    elif name == IMPLEMENTED_TRAIN_ENGINE[4]:
+        from train.PAGAN import pa_gan as train
     else:
         raise NotImplementedError("You have not implement {}".format(name))
     return train
