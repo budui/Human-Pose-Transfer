@@ -3,7 +3,6 @@ import os
 import torch
 import torch.optim as optim
 from ignite.engine import Engine, Events
-from ignite.metrics import RunningAverage
 from torch import nn
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
@@ -45,8 +44,8 @@ def get_trainer(opt, device="cuda"):
     G.apply(weights_init_normal)
     G.to(device)
     D.to(device)
-    optimizer_G = optim.Adam(G.parameters(), lr=0.0002, betas=(0.5, 0.999))
-    optimizer_D = optim.Adam(D.parameters(), lr=0.0002, betas=(0.5, 0.999))
+    optimizer_G = optim.Adam(G.parameters(), lr=opt.lr, betas=(0.5, 0.999))
+    optimizer_D = optim.Adam(D.parameters(), lr=opt.lr, betas=(0.5, 0.999))
     lr_policy = lambda epoch: (1 - 1 * max(0, epoch - opt.de_epoch) / opt.de_epoch)
     scheduler_G = lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_policy)
     scheduler_D = lr_scheduler.LambdaLR(optimizer_D, lr_lambda=lr_policy)
@@ -236,6 +235,7 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--replacement', default=False, type=bool_arg)
     parser.add_argument('--use_db', default=True, type=bool_arg)
     parser.add_argument('--flip_rate', type=float, default=0.5)
+    parser.add_argument('--lr', type=float, default=0.0002)
 
     parser.add_argument('--mask_l1_loss', type=float, default=10)
     parser.add_argument('--l1_loss', type=float, default=0)
