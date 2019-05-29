@@ -5,7 +5,7 @@ import torch.nn as nn
 
 
 class ResBlock(nn.Module):
-    def __init__(self, ncf, use_bias=False):
+    def __init__(self, ncf, use_bias=False, mix=False):
         super(ResBlock, self).__init__()
         self.conv1 = nn.Sequential(OrderedDict([
             ('conv', nn.Conv2d(ncf, ncf, kernel_size=3, stride=1, padding=1, bias=use_bias)),
@@ -18,13 +18,23 @@ class ResBlock(nn.Module):
         ]))
         self.relu = nn.ReLU(inplace=True)
 
+        if mix:
+            self.mix_conv = nn.Sequential(OrderedDict([
+            ('conv', nn.Conv2d(ncf, int(ncf/2), kernel_size=3, stride=1, padding=1, bias=use_bias)),
+            ('bn', nn.InstanceNorm2d(ncf)),
+            ('relu', nn.ReLU(inplace=True)),
+        ]))
+        self.mix = mix
+
     def forward(self, x):
         out = self.conv1(x)
         out = self.conv2(out)
         out = out + x
         out = self.relu(out)
-
-        return out
+        if self.mix:
+            return self.mix_conv(out)
+        else:
+            return out
 
 
 class ResGenerator(nn.Module):
@@ -66,11 +76,15 @@ class ResGenerator(nn.Module):
 
         self.num_resblock = num_resblock
         for i in range(num_resblock):
-            setattr(self, 'res' + str(i + 1), ResBlock(ngf * 8, use_bias=True))
+            if i == 0:
+                res = ResBlock(ngf * 8, use_bias=True, mix=True)
+            else:
+                res = ResBlock(ngf * 4, use_bias=True, mix=False)
+            setattr(self, 'res' + str(i + 1), res)
 
         self.deconv3 = nn.Sequential(OrderedDict([
             ('deconv',
-             nn.ConvTranspose2d(ngf * 8, ngf * 2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
+             nn.ConvTranspose2d(ngf * 4, ngf * 2, kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
             ('bn', nn.InstanceNorm2d(ngf * 2)),
             ('relu', nn.ReLU(True))
         ]))

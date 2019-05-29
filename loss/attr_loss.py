@@ -75,7 +75,7 @@ class APR(nn.Module):
     def __init__(self, attributes, num_identity, drop_rate=0.5, last_stride=2):
         super().__init__()
         self.attributes = attributes
-        base_model = models.resnet50(pretrained=True)
+        base_model = models.resnet50(pretrained=False)
         if last_stride == 1:
             base_model.layer4[0].downsample[0].stride = (1, 1)
             base_model.layer4[0].conv2.stride = (1, 1)
@@ -110,22 +110,28 @@ class IDAttrLoss(nn.Module):
     def __init__(self, apr_path, device="cuda"):
         super(IDAttrLoss, self).__init__()
         self.device = device
-        var_std = torch.Tensor([0.229, 0.224, 0.225]).resize_(1, 3, 1, 1).to(device)
-        var_mean = torch.Tensor([0.485, 0.456, 0.406]).resize_(1, 3, 1, 1).to(device)
-        self.re_norm = lambda image: (((image + 1) / 2) - var_mean) / var_std
+        with open("data/market_name_to_id.json", "r") as f:
+            import json
+            data = json.load(f)
+        self.name_to_id = data
         self.apr = APR(dict(zip(ATTR_NAMES, ATTR_NUM_CLASS)), 751)
         self.apr.load_state_dict(torch.load(apr_path))
         self.apr.eval()
         self.apr.to(device)
         self.loss_fn = nn.CrossEntropyLoss()
 
-    def forward(self, generated_image, attr_labels):
-        # [-1, 1] to [0, 1] then Normalize
-        generated_image_norm = F.interpolate(self.re_norm(generated_image), (256, 128))
+    def _convert_name_to_tensor(self, p_names):
+        t_id = torch.zeros([len(p_names)], device=self.device, dtype=torch.long)
+        for i, pn in enumerate(p_names):
+            t_id[i] = self.name_to_id[pn[:4]]
+        return t_id
 
+    def forward(self, generated_image, attr_labels, p_names):
         with torch.no_grad():
-            _, attrs_pred = self.apr(generated_image_norm)
+            pred_id, attrs_pred = self.apr(generated_image)
+        pid = self._convert_name_to_tensor(p_names)
+        id_loss = self.loss_fn(pred_id, pid)
         attr_loss = {}
         for attr, pred in attrs_pred.items():
             attr_loss[attr] = self.loss_fn(pred, attr_labels[attr])
-        return sum(attr_loss.values()) / len(attr_loss)
+        return sum(attr_loss.values()) / len(attr_loss) + 8*id_loss

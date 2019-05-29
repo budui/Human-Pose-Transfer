@@ -34,6 +34,11 @@ class LossContainer(object):
 
 
 def attach_engine(engine, ra):
-    for name, fn in ra.items():
-        print("attach RunningAverage: {}".format(name))
-        RunningAverage(output_transform=fn).attach(engine, name)
+    def attach(pair):
+        name, fn = pair
+        rav = RunningAverage(output_transform=fn)
+        rav.attach(engine, name)
+        return rav, name
+
+    for m, name in map(lambda x: attach(x), ra.items()):
+        print("attach RunningAverage: {}, output_transform: {}".format(name, m._output_transform))

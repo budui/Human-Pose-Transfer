@@ -89,7 +89,7 @@ class APR(nn.Module):
     def __init__(self, attributes, num_identity, drop_rate=0.5, last_stride=2):
         super().__init__()
         self.attributes = attributes
-        base_model = models.resnet50(pretrained=True)
+        base_model = models.resnet50(pretrained=False)
         if last_stride == 1:
             base_model.layer4[0].downsample[0].stride = (1, 1)
             base_model.layer4[0].conv2.stride = (1, 1)
@@ -121,7 +121,7 @@ class APR(nn.Module):
 
 
 class AttrMarket1501(Dataset):
-    def __init__(self, root_path, attr_path, transfrom=None, loader=default_loader):
+    def __init__(self, root_path, attr_path, transfrom=None, loader=default_loader, save_map=True):
         self.path = root_path
         self.attr_path = attr_path
         if not os.path.isdir(self.path):
@@ -140,6 +140,11 @@ class AttrMarket1501(Dataset):
             if f.endswith(".jpg"):
                 self.file_list.append(f)
         self.name_to_class = self._id_name_to_class()
+        if save_map:
+            import json
+            print("##############save market_name_to_id.json")
+            with open("market_name_to_id.json", "w") as f:
+                json.dump(self.name_to_class, f)
 
     def _id_name_to_class(self):
         names = set(sorted([fn[:4] for fn in self.file_list]))
@@ -289,9 +294,8 @@ def get_data_loader(opt, device="cuda"):
         opt.market1501,
         "data/market/attribute/market_attribute.mat",
         transforms.Compose([
-            transforms.Resize(size=(256, 128), interpolation=3),  # Image.BICUBIC
             transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
         ])
     )
     print(dataset)
