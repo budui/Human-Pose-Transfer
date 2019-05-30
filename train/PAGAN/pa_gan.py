@@ -79,7 +79,7 @@ def get_trainer(opt, device="cuda"):
             "adv":  gan_loss(pred["g_pp"], torch.ones_like(pred["g_pp"])),
             "mask_l1": mask_l1_loss(generated_img, target_img, target_mask),
             "l1": l1_loss(generated_img, target_img),
-            "attr": attr_loss(generated_img, batch["attr"]),
+            "attr": attr_loss(generated_img, batch["attr"], batch["P1_path"]),
             "perceptual": perceptual_loss(generated_img, target_img)
         }
 
@@ -108,7 +108,6 @@ def get_trainer(opt, device="cuda"):
         optimizer_D.step()
 
         output = {
-            "pred": {k: torch.sigmoid(v).mean().item() for k, v in pred.items()},
             "loss": {
                 "g": {k: v.item() for k, v in _generator_loss.items()},
                 "pp": {k: v.item() for k, v in _pp_discriminator_loss.items()},
@@ -135,6 +134,8 @@ def get_trainer(opt, device="cuda"):
             output["loss"]["pb"] = {k: v.item() for k, v in _pb_discriminator_loss.items()}
             output["loss"]["pb_total"] = pb_discriminator_loss.item()
 
+        output["pred"] = {k: torch.sigmoid(v).mean().item() for k, v in pred.items()}
+
         if engine.state.iteration % opt.print_freq == 0:
             path = os.path.join(opt.output_dir, VAL_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
             get_current_visuals(path, batch, [generated_img])
@@ -156,12 +157,19 @@ def get_trainer(opt, device="cuda"):
         total_loss_names += ["pb_total"]
         g_loss_names += ["adv_pb"]
 
-    running_averages = {"pred_{}".format(pn): lambda x: x["pred"][pn] for pn in pred_names}
-    running_averages.update({"loss_g_{}".format(n): lambda x: x["loss"]["g"][n] for n in g_loss_names})
-    running_averages.update({"loss_{}".format(ln): lambda x: x["loss"][ln] for ln in total_loss_names})
-    running_averages.update({"loss_pp_{}".format(n): lambda x: x["loss"]["pp"][n] for n in ("real", "fake")})
+    def make_ofn(keys):
+        def ofn(x):
+            for k in keys:
+                x = x[k]
+            return x
+        return ofn
+
+    running_averages = {"pred_{}".format(pn): make_ofn(["pred", pn]) for pn in pred_names}
+    running_averages.update({"loss_g_{}".format(n): make_ofn(["loss", "g", n]) for n in g_loss_names})
+    running_averages.update({"loss_{}".format(ln): make_ofn(["loss", ln]) for ln in total_loss_names})
+    running_averages.update({"loss_pp_{}".format(n): make_ofn(["loss", "pp", n]) for n in ("real", "fake")})
     if opt.use_db:
-        running_averages.update({"loss_pb_{}".format(n): lambda x: x["loss"]["pb"][n] for n in ("real", "fake")})
+        running_averages.update({"loss_pb_{}".format(n): make_ofn(["loss", "pb", n]) for n in ("real", "fake")})
 
     attach_engine(trainer, running_averages)
 
