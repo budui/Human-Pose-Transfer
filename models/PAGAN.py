@@ -63,6 +63,35 @@ class AU(nn.Module):
         return x
 
 
+class MixBlock(nn.Module):
+    def __init__(self, num_channels, is_first=False, use_bias=False):
+        super().__init__()
+        self.is_first = is_first
+        self.conv = nn.Sequential(OrderedDict([
+            ('conv', nn.Conv2d(num_channels * 2, num_channels, kernel_size=3, stride=1, padding=1, bias=use_bias)),
+            ('bn', nn.InstanceNorm2d(num_channels * 2)),
+            ('relu', nn.ReLU(inplace=True)),
+        ]))
+        self.deconv = nn.Sequential(OrderedDict([
+            ('deconv',
+             nn.ConvTranspose2d(
+                 (num_channels * 2) if not is_first else num_channels,
+                 int(num_channels * 0.5), kernel_size=3, stride=2, padding=1, output_padding=1, bias=True)),
+            ('bn', nn.InstanceNorm2d(int(num_channels * 0.5))),
+            ('relu', nn.ReLU(True))
+        ]))
+
+    def forward(self, attr, img_f, pose_f, u=None):
+        x = torch.cat([img_f, pose_f], dim=1)
+        res = self.conv(x)
+        x = res + img_f
+        if self.is_first:
+            x = self.deconv(x)
+        else:
+            x = self.deconv(torch.cat([x, u], dim=1))
+        return x
+
+
 class PAGenerator(nn.Module):
     def __init__(self, pose_input_channels=18*2, num_block=3, ngf=64):
         super(PAGenerator, self).__init__()
@@ -86,10 +115,10 @@ class PAGenerator(nn.Module):
         self.pa2_p = PABlock(ngf * 2)
         self.pa3_p = PABlock(ngf * 4)
 
-        self.au1 = AU(ngf * 8, is_first=True)
+        self.au1 = MixBlock(ngf * 8, is_first=True)
 
-        self.au2 = AU(ngf * 4)
-        self.au3 = AU(ngf * 2)
+        self.au2 = MixBlock(ngf * 4)
+        self.au3 = MixBlock(ngf * 2)
         print(self.au3)
 
         self.deconv = nn.Sequential(OrderedDict([

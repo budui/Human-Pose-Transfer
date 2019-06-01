@@ -116,8 +116,10 @@ class IDAttrLoss(nn.Module):
         self.name_to_id = data
         self.apr = APR(dict(zip(ATTR_NAMES, ATTR_NUM_CLASS)), 751)
         self.apr.load_state_dict(torch.load(apr_path))
-        self.apr.eval()
         self.apr.to(device)
+        for param in self.apr.parameters():
+            param.requires_grad = False
+        self.apr.eval()
         self.loss_fn = nn.CrossEntropyLoss()
 
     def _convert_name_to_tensor(self, p_names):
@@ -127,11 +129,10 @@ class IDAttrLoss(nn.Module):
         return t_id
 
     def forward(self, generated_image, attr_labels, p_names):
-        with torch.no_grad():
-            pred_id, attrs_pred = self.apr(generated_image)
+        pred_id, attrs_pred = self.apr(generated_image)
         pid = self._convert_name_to_tensor(p_names)
         id_loss = self.loss_fn(pred_id, pid)
         attr_loss = {}
         for attr, pred in attrs_pred.items():
             attr_loss[attr] = self.loss_fn(pred, attr_labels[attr])
-        return sum(attr_loss.values()) / len(attr_loss) + 8*id_loss
+        return (sum(attr_loss.values()) / len(attr_loss) + 8*id_loss)/9

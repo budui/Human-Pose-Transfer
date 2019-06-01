@@ -190,6 +190,7 @@ def get_trainer(opt, device="cuda"):
         [FAKE_IMG_FNAME, VAL_IMG_FNAME]
     )
 
+    @trainer.on(Events.STARTED)
     @trainer.on(Events.EPOCH_COMPLETED)
     def adjust_learning_rate(engine):
         print("-----------scheduler------step----------")
@@ -207,7 +208,9 @@ def get_trainer(opt, device="cuda"):
     @trainer.on(Events.ITERATION_COMPLETED)
     def save_example(engine):
         if engine.state.iteration > 0 and engine.state.iteration % opt.print_freq == 0:
+            G.eval()
             generated_img = G(val_data_pairs["P1"], torch.cat([val_data_pairs["BP1"], val_data_pairs["BP2"]], dim=1))
+            G.train()
             path = os.path.join(opt.output_dir, FAKE_IMG_FNAME.format(engine.state.iteration))
             get_current_visuals(path, val_data_pairs, [generated_img])
 
