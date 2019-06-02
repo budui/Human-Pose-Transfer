@@ -17,10 +17,10 @@ def get_generator(path, num_res, device="cuda", generate_all=False):
         if generate_all:
             g_imgs = []
             for i in range(num_res):
-                g_imgs.append(G(condition_img, target_pose, i))
+                g_imgs.append(G(condition_img, torch.cat([batch["BP1"], batch["BP2"]], dim=1), i))
             generated_imgs = torch.cat(g_imgs, dim=-1)
         else:
-            generated_imgs = G(condition_img, target_pose)
+            generated_imgs = G(condition_img, torch.cat([batch["BP1"], batch["BP2"]], dim=1))
         generated_imgs.clamp_(-1, 1)
         return generated_imgs
 

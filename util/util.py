@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from PIL import Image
+import os
 
 from util.pose import draw_pose_from_cords_and_visibility, draw_pose_from_cords
 
@@ -16,6 +17,33 @@ def tensor2image(image_tensor, imtype=np.uint8):
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy)
     image_pil.save(image_path)
+
+
+def visuals_for_test(output_dir, data_pair, new_imgs=None):
+    height, width, batch_size = data_pair["P1"].size(2), data_pair["P1"].size(3), data_pair["P1"].size(0)
+
+    image_num = batch_size
+
+    def make_vis(image_list, row_id):
+        for img_id, img in enumerate(image_list):
+            vis[height * row_id:height * (1 + row_id), width * img_id:width * (img_id + 1), :] = img
+
+    for i in range(image_num):
+        vis = np.zeros((height, width * (4 + 1), 3)).astype(np.uint8)
+        new_img_list = []
+        if new_imgs is not None:
+            nimg = new_imgs[i]
+            nimg.clamp_(-1, 1)
+            new_img_list.append(tensor2image(nimg.data))
+        input_p1 = tensor2image(data_pair["P1"].data[i])
+        image_size = input_p1.shape[:2]
+        input_p2 = tensor2image(data_pair["P2"].data[i])
+        input_bp1 = draw_pose_from_cords(data_pair["KP1"].data[i], image_size)[0]
+        input_bp2 = draw_pose_from_cords(data_pair["KP2"].data[i], image_size)[0]
+
+        make_vis([input_p1, input_bp1, input_p2, input_bp2] + new_img_list, 0)
+        image_path = os.path.join(output_dir, "{}___{}_vis.jpg".format(data_pair["P1_path"][i], data_pair["P2_path"][i]))
+        save_image(vis, image_path)
 
 
 def get_current_visuals(img_path, data_pair, new_imgs=None):

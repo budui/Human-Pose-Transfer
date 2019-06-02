@@ -1,6 +1,7 @@
 import os
 
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from ignite.engine import Engine, Events
 from ignite.metrics import RunningAverage
@@ -8,9 +9,11 @@ from torch.utils.data import DataLoader
 
 import dataset.bone_dataset as dataset
 import models.PG2 as PG2
+from models.PATN import ResnetDiscriminator
 from loss.mask_l1 import MaskL1Loss
 from train.common_handler import warp_common_handler
 from util.util import get_current_visuals
+from util.image_pool import ImagePool
 
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
@@ -35,7 +38,7 @@ def get_trainer(option, device):
         "data/market/annotation-test.csv",
     )
 
-    val_image_loader = DataLoader(val_image_dataset, batch_size=4, num_workers=1)
+    val_image_loader = DataLoader(val_image_dataset, batch_size=8, num_workers=1)
     val_data_pair = next(iter(val_image_loader))
     _move_data_pair_to(device, val_data_pair)
 
@@ -47,19 +50,44 @@ def get_trainer(option, device):
 
     output_dir = option.output_dir
 
+    DB = ResnetDiscriminator(3 + 18, gpu_ids=[option.gpu_id], n_blocks=3, use_sigmoid=False)
+    DB.apply(PG2.weights_init_normal)
+    DB.to(device)
+    optimizer_DB = optim.Adam(DB.parameters(), lr=option.g_lr, betas=(0.5, 0.999))
+    fake_pb_pool = ImagePool(50)
+    gan_loss = nn.MSELoss()
+
     def step(engine, batch):
         _move_data_pair_to(device, batch)
         condition_img = batch["P1"]
-        condition_pose = batch["BP2"]
+        target_pose = batch["BP2"]
         target_img = batch["P2"]
         target_mask = batch["MP2"]
 
-        generator_1_img = generator_1(torch.cat([condition_img, condition_pose], dim=1))
+        generator_1_img = generator_1(torch.cat([condition_img, target_pose], dim=1))
+
+        g_pb = DB(torch.cat([generator_1_img, target_pose], dim=1))
+        adv_pb = gan_loss(g_pb, torch.ones_like(g_pb))
+        generator_1_mask_l1_loss = mask_l1_loss(generator_1_img, target_img, target_mask)
 
         optimizer_generator_1.zero_grad()
-        generator_1_mask_l1_loss = mask_l1_loss(generator_1_img, target_img, target_mask)
-        generator_1_mask_l1_loss.backward()
+        g1_loss = 0.1*adv_pb + 2*generator_1_mask_l1_loss
+        g1_loss.backward()
         optimizer_generator_1.step()
+
+        d_pb_fake = DB(fake_pb_pool.query(torch.cat([generator_1_img.detach(), target_pose], dim=1).data))
+        d_pb_real = DB(torch.cat([target_img, target_pose], dim=1))
+
+        _pb_discriminator_loss = {
+            "real": gan_loss(d_pb_real, torch.ones_like(d_pb_real)),
+            "fake": gan_loss(d_pb_fake, torch.zeros_like(d_pb_fake))
+        }
+
+        pb_discriminator_loss = sum(_pb_discriminator_loss.values()) / len(_pb_discriminator_loss)
+
+        optimizer_DB.zero_grad()
+        pb_discriminator_loss.backward()
+        optimizer_DB.step()
 
         if engine.state.iteration % 100 == 0:
             path = os.path.join(output_dir, VAL_IMG_FNAME.format(engine.state.epoch, engine.state.iteration))
@@ -68,6 +96,7 @@ def get_trainer(option, device):
         return {
             "loss": {
                 "G_l1": generator_1_mask_l1_loss.item(),
+                "G_adv": adv_pb.item()
             },
         }
 
@@ -76,6 +105,7 @@ def get_trainer(option, device):
     # attach running average metrics
     monitoring_metrics = ['loss_G_l1']
     RunningAverage(output_transform=lambda x: x["loss"]['G_l1']).attach(trainer, 'loss_G_l1')
+    RunningAverage(output_transform=lambda x: x["loss"]['G_adv']).attach(trainer, 'loss_G_adv')
 
     networks_to_save = dict(G2=generator_1)
 

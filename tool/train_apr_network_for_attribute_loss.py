@@ -131,19 +131,19 @@ class AttrMarket1501(Dataset):
         self.loader = loader
 
         self.mat = loadmat(self.attr_path)["market_attribute"][0][0]
-        self.attrs = self._make_attr_dict("train")
+        self.attrs = self._make_attr_dict("test")
 
-        file_list = os.listdir(os.path.join(self.path, "bounding_box_train"))
+        file_list = os.listdir(os.path.join(self.path, "bounding_box_test"))
 
         self.file_list = []
         for f in file_list:
-            if f.endswith(".jpg"):
+            if f.endswith(".jpg") and not f.startswith("-1") and not f.startswith("0000"):
                 self.file_list.append(f)
         self.name_to_class = self._id_name_to_class()
         if save_map:
             import json
             print("##############save market_name_to_id.json")
-            with open("market_name_to_id.json", "w") as f:
+            with open("market_name_to_id_test.json", "w") as f:
                 json.dump(self.name_to_class, f)
 
     def _id_name_to_class(self):
@@ -175,7 +175,7 @@ class AttrMarket1501(Dataset):
         id_name = img_path[:4]
         attr = self.attrs[id_name]
         class_id = self.name_to_class[id_name]
-        image = self.loader(os.path.join(self.path, "bounding_box_train/", img_path))
+        image = self.loader(os.path.join(self.path, "bounding_box_test/", img_path))
         if self.transform is not None:
             image = self.transform(image)
         return image, class_id, attr

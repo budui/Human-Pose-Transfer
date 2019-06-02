@@ -17,7 +17,7 @@ from util.util import get_current_visuals
 FAKE_IMG_FNAME = 'iteration_{}.png'
 VAL_IMG_FNAME = 'train_image/epoch_{:02d}_{:07d}.png'
 
-SUPPORTED_DISCRIMINATOR = ["PATCHGAN", "DCGAN", "DCGAN-improve"]
+SUPPORTED_DISCRIMINATOR = ["PATCHGAN", "DCGAN", "DCGAN-improve", "CONCAT"]
 SUPPORTED_GAN_LOSS = ["LSLoss", "BCELoss"]
 
 
@@ -49,6 +49,10 @@ def _make_discriminator(d_type):
     print("############ discriminaton: {} #############".format(d_type))
     if d_type == SUPPORTED_DISCRIMINATOR[0]:
         discriminator = PG2.PatchDiscriminatorSingle(in_channels=3)
+        discriminator.apply(PG2.weights_init_normal)
+        patch_size = (128 // 2 ** 4, 64 // 2 ** 4)
+    elif d_type == SUPPORTED_DISCRIMINATOR[3]:
+        discriminator = PG2.PatchDiscriminator(in_channels=3)
         discriminator.apply(PG2.weights_init_normal)
         patch_size = (128 // 2 ** 4, 64 // 2 ** 4)
     elif d_type == SUPPORTED_DISCRIMINATOR[1]:
@@ -134,7 +138,10 @@ def get_trainer(option, device):
         optimizer_generator_2.zero_grad()
 
         # BCE loss
-        pred_disc_fake_1 = discriminator(generated_img)
+        if "CONCAT" == option.discriminator:
+            pred_disc_fake_1 = discriminator(generated_img, condition_img)
+        else:
+            pred_disc_fake_1 = discriminator(generated_img)
         generator_2_adv_loss = adversarial_loss(pred_disc_fake_1, real_labels)
         # MaskL1 loss
         if mask_l1_loss_lambda > 0:
@@ -156,28 +163,44 @@ def get_trainer(option, device):
 
         # -----------------------------------------------------------
         # (2) Update D network: minimize L_bce
-        optimizer_discriminator.zero_grad()
-        # real loss 1
-        pred_disc_real_2 = discriminator(target_img)
-        discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
-        # fake loss 1
-        pred_disc_fake_2 = discriminator(generated_img.detach())
-        discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
-        # total loss 1
-        discriminator_loss_1 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+        if "CONCAT" == option.discriminator:
+            optimizer_discriminator.zero_grad()
+            # real loss 1
+            pred_disc_real_2 = discriminator(target_img, condition_img)
+            discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
+            # fake loss 1
+            pred_disc_fake_2 = discriminator(generated_img.detach(), condition_img)
+            discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
+            # total loss 1
+            discriminator_loss_1 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+            discriminator_loss = discriminator_loss_1
+            discriminator_loss.backward()
+            # gradient update
+            optimizer_discriminator.step()
+        else:
 
-        # real loss 2
-        pred_disc_real_2 = discriminator(target_img)
-        discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
-        # fake loss 2
-        pred_disc_fake_2 = discriminator(condition_img)
-        discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
-        discriminator_loss_2 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+            optimizer_discriminator.zero_grad()
+            # real loss 1
+            pred_disc_real_2 = discriminator(target_img)
+            discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
+            # fake loss 1
+            pred_disc_fake_2 = discriminator(generated_img.detach())
+            discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
+            # total loss 1
+            discriminator_loss_1 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
 
-        discriminator_loss = (discriminator_loss_1 + discriminator_loss_2) * 0.5
-        discriminator_loss.backward()
-        # gradient update
-        optimizer_discriminator.step()
+            # real loss 2
+            pred_disc_real_2 = discriminator(target_img)
+            discriminator_real_loss = adversarial_loss(pred_disc_real_2, real_labels)
+            # fake loss 2
+            pred_disc_fake_2 = discriminator(condition_img)
+            discriminator_fake_loss = adversarial_loss(pred_disc_fake_2, fake_labels)
+            discriminator_loss_2 = (discriminator_fake_loss + discriminator_real_loss) * 0.5
+
+            discriminator_loss = (discriminator_loss_1 + discriminator_loss_2) * 0.5
+            discriminator_loss.backward()
+            # gradient update
+            optimizer_discriminator.step()
 
         # -----------------------------------------------------------
         # (3) Collect train info

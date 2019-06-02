@@ -53,14 +53,15 @@ def load_generated_images(images_folder):
     input_images = []
     target_images = []
     generated_images = []
+    print("load image from {}".format(images_folder))
 
     names = []
     for img_name in os.listdir(images_folder):
         img = imread(os.path.join(images_folder, img_name))
-        w = int(img.shape[1] / 3)  # h, w ,c
+        w = 64  # h, w ,c
         input_images.append(img[:, :w])
-        target_images.append(img[:, 1 * w:2 * w])
-        generated_images.append(img[:, 2 * w:3 * w])
+        target_images.append(img[:, 2 * w:3 * w])
+        generated_images.append(img[:, 4 * w:5 * w])
 
         # assert img_name.endswith('_vis.png'), 'unexpected img name: should end with _vis.png'
         assert img_name.endswith('_vis.png') or img_name.endswith(
