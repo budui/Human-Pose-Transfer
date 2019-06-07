@@ -12,6 +12,14 @@ import util.util as util
 from dataset.bone_dataset import BoneDataset
 from util.arg_parse import bool_arg
 
+
+from util.sample.pose import interpolation
+from test.DPIG.sample_pose import _load_model
+from util.util import show_with_visibility as show_pose
+from models.DPIG import PoseDecoder, PoseEncoder
+from dataset.key_point_dataset import KeyPointDataset
+
+
 def select_generator(option, device):
     if option.name == "PG2-Generate":
         from test.PG2 import get_generator
@@ -26,27 +34,51 @@ def select_generator(option, device):
         raise NotImplementedError("not implemented generate methods: {}".format(option.name))
 
 
+def get_interpolation_pose():
+    device = "cuda"
+    encoder_path = "/root/hpt/data/pose_encoder.pth"
+    decoder_path = "/root/hpt/data/pose_decoder.pth"
+    pose_encoder = _load_model(PoseEncoder, encoder_path, device)
+    pose_decoder = _load_model(PoseDecoder, decoder_path, device)
+    print("################# load pose encoder and decoder #######################")
+
+    key_points_dir = "/root/hpt/data/market/annotation-test.csv"
+    dataset = KeyPointDataset(key_points_dir)
+
+    def inter(image1, image2):
+        pose_1, pose_2 = dataset.get(image1, image2)
+        pose_1 = pose_1.to("cuda")
+        pose_2 = pose_2.to("cuda")
+        pose_interpolation = interpolation(pose_1, pose_2, pose_encoder, pose_decoder)
+        new_poses = [pose.squeeze(0) for pose in pose_interpolation]
+        return new_poses
+    return inter
+
+
 def get_tester(option, device):
     output_dir = option.output_dir
     generate = select_generator(option, device)
 
     limit = option.limit
 
+    inter = get_interpolation_pose()
+
     def step(engine, batch):
-        generated_imgs = generate(batch)
+
+        i = True
+        if i:
+            new_poses = inter(batch["P1_name"][0], batch["P2_name"][0])
+            show_pose(new_poses, "{}_{}_pose.jpg".format(batch["P1_name"][0], batch["P2_name"][0]))
+            new_poses
+            generated_imgs = generate(batch)
+        else:
+            generated_imgs = generate(batch)
 
         if limit < 0:
             util.visuals_for_test(output_dir, batch, generated_imgs)
         else:
-            for i in range(generated_imgs.size(0)):
-                image_size = (128, 64)
-                image = np.zeros((image_size[0], image_size[1] * 2 + generated_imgs.size(3), 3)).astype(np.uint8)
-                image[:, 0 * image_size[1]:1 * image_size[1], :] = util.tensor2image(batch["P1"].data[i])
-                image[:, 1 * image_size[1]:2 * image_size[1], :] = util.tensor2image(batch["P2"].data[i])
-                image[:, 2 * image_size[1]:, :] = util.tensor2image(generated_imgs.data[i])
-                image_path = os.path.join(output_dir, "{}.png".format(engine.state.idx))
-                engine.state.idx += 1
-                util.save_image(image, image_path)
+            util.visuals_for_test(output_dir, batch, generated_imgs, name=engine.state.idx)
+            engine.state.idx += generated_imgs.size(0)
         return
 
     tester = Engine(step)

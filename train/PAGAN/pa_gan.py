@@ -254,7 +254,5 @@ def add_new_arg_for_parser(parser):
     parser.add_argument('--attr_loss', type=float, default=1)
     parser.add_argument('--arp_path', type=str, default="./data/net_ARP.pth")
 
-    parser.add_argument('--num_res', type=int, default=9,
-                        help="the number of res block in generator")
     parser.add_argument('--de_epoch', type=int, default=6,
                         help="the number of res block in generator")

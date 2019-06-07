@@ -3,11 +3,14 @@ import torch
 from models.PNGAN import ResGenerator
 from train.helper import move_data_pair_to
 
+from util.util import diagnose_network
+
 
 def get_generator(path, num_res, device="cuda", generate_all=False):
     G = ResGenerator(64, num_res)
+    diagnose_network(G, "G")
     G.eval()
-    G.load_state_dict(torch.load(path))
+    G.load_state_dict(torch.load(path, map_location="cpu"))
     G.to(device)
 
     def generator(batch):

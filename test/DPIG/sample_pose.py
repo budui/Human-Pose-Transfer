@@ -41,9 +41,9 @@ def get_tester(option, device):
 
         return {
             "recon_loss": recon_loss.item(),
-            "recon_pose": recon_pose,
-            "origin_pose": origin_pose,
-            "z": z
+            "recon_pose": recon_pose.data,
+            "origin_pose": origin_pose.data,
+            "z": z.data
         }
 
     tester = Engine(step)
@@ -72,8 +72,8 @@ def get_tester(option, device):
 def add_new_arg_for_parser(parser, name):
     parser.add_argument("--key_points_dir", type=str,
                         default="data/market/annotation-test.csv")
-    parser.add_argument("--encoder_path", type=str)
-    parser.add_argument("--decoder_path", type=str)
+    parser.add_argument("--encoder_path", type=str, default="data/pose_encoder.pth")
+    parser.add_argument("--decoder_path", type=str, default="data/pose_decoder.pth")
     parser.add_argument("--limit_size", type=int, help="if set gen_size, only `limit_size` poses will be used")
 
 

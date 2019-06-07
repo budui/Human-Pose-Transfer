@@ -19,17 +19,17 @@ def save_image(image_numpy, image_path):
     image_pil.save(image_path)
 
 
-def visuals_for_test(output_dir, data_pair, new_imgs=None):
+def visuals_for_test(output_dir, data_pair, new_imgs=None, name=None):
     height, width, batch_size = data_pair["P1"].size(2), data_pair["P1"].size(3), data_pair["P1"].size(0)
 
     image_num = batch_size
 
     def make_vis(image_list, row_id):
         for img_id, img in enumerate(image_list):
-            vis[height * row_id:height * (1 + row_id), width * img_id:width * (img_id + 1), :] = img
+            vis[height * row_id:height * (1 + row_id), width * img_id:width * img_id + img.shape[-2], :] = img
 
     for i in range(image_num):
-        vis = np.zeros((height, width * (4 + 1), 3)).astype(np.uint8)
+        vis = np.zeros((height, width * 4+new_imgs[i].size(-1), 3)).astype(np.uint8)
         new_img_list = []
         if new_imgs is not None:
             nimg = new_imgs[i]
@@ -42,7 +42,10 @@ def visuals_for_test(output_dir, data_pair, new_imgs=None):
         input_bp2 = draw_pose_from_cords(data_pair["KP2"].data[i], image_size)[0]
 
         make_vis([input_p1, input_bp1, input_p2, input_bp2] + new_img_list, 0)
-        image_path = os.path.join(output_dir, "{}___{}_vis.jpg".format(data_pair["P1_path"][i], data_pair["P2_path"][i]))
+        if name is None:
+            image_path = os.path.join(output_dir, "{}___{}_vis.jpg".format(data_pair["P1_path"][i], data_pair["P2_path"][i]))
+        else:
+            image_path = os.path.join(output_dir, "{}.png".format(i+name))
         save_image(vis, image_path)
 
 
@@ -104,3 +107,8 @@ def show_with_visibility(poses, save_path, pose_has_norm=True, image_size=(128, 
             colors = draw_pose_from_cords_and_visibility(pose_joints, visibility, image_size)
             vis[:, image_size[1] * i:image_size[1] * (i + 1), :] = colors
     save_image(vis, save_path)
+
+
+def diagnose_network(net, name='network'):
+    print(name)
+    print(sum(param.numel() for param in net.parameters()))

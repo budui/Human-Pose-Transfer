@@ -2,7 +2,7 @@ from PIL import Image
 import os
 import numpy as np
 
-img_dir = './_final/c3l/res_ml@10pl@10@al0.01_with_pb/r'
+img_dir = './_generated'
 save_dir = './_r'
 
 if not os.path.exists(save_dir):
