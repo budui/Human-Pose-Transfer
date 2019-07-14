@@ -42,11 +42,16 @@ def get_trainer(opt, device="cuda"):
     D = PNGAN.PatchDiscriminator(64)
     D.apply(weights_init_normal)
     G.apply(weights_init_normal)
+
+    G.load_state_dict(torch.load("./_final/deep/ml@10pl@5@al0_with_pb/models/networks_G_98800.pth"))
+    D.load_state_dict(torch.load("./_final/deep/ml@10pl@5@al0_with_pb/models/networks_D_98800.pth"))
+
     G.to(device)
     D.to(device)
     optimizer_G = optim.Adam(G.parameters(), lr=opt.lr, betas=(0.5, 0.999))
     optimizer_D = optim.Adam(D.parameters(), lr=opt.lr, betas=(0.5, 0.999))
-    lr_policy = lambda epoch: (1 - 1 * max(0, epoch - opt.de_epoch) / opt.de_epoch)
+    # lr_policy = lambda epoch: (1 - 1 * max(0, epoch - opt.de_epoch) / opt.de_epoch)
+    lr_policy = lambda epoch: 1
     scheduler_G = lr_scheduler.LambdaLR(optimizer_G, lr_lambda=lr_policy)
     scheduler_D = lr_scheduler.LambdaLR(optimizer_D, lr_lambda=lr_policy)
 
@@ -79,7 +84,7 @@ def get_trainer(opt, device="cuda"):
             "adv":  gan_loss(pred["g_pp"], torch.ones_like(pred["g_pp"])),
             "mask_l1": mask_l1_loss(generated_img, target_img, target_mask),
             "l1": l1_loss(generated_img, target_img),
-            "attr": attr_loss(generated_img, batch["attr"], batch["P1_path"]),
+            "attr": attr_loss(generated_img, None, batch["P1_path"]),
             "perceptual": perceptual_loss(generated_img, target_img)
         }
 
@@ -203,29 +208,28 @@ def get_trainer(opt, device="cuda"):
         print(optimizer_D.param_groups[0]["lr"])
         print(optimizer_G.param_groups[0]["lr"])
         print("-----------scheduler------over----------")
-
-    val_data_pairs = _get_val_data_pairs(opt, device)
-    @trainer.on(Events.ITERATION_COMPLETED)
-    def save_example(engine):
-        if engine.state.iteration > 0 and engine.state.iteration % opt.print_freq == 0:
-            G.eval()
-            generated_img = G(val_data_pairs["P1"], torch.cat([val_data_pairs["BP1"], val_data_pairs["BP2"]], dim=1))
-            G.train()
-            path = os.path.join(opt.output_dir, FAKE_IMG_FNAME.format(engine.state.iteration))
-            get_current_visuals(path, val_data_pairs, [generated_img])
+    #
+    # val_data_pairs = _get_val_data_pairs(opt, device)
+    # @trainer.on(Events.ITERATION_COMPLETED)
+    # def save_example(engine):
+    #     if engine.state.iteration > 0 and engine.state.iteration % opt.print_freq == 0:
+    #         G.eval()
+    #         generated_img = G(val_data_pairs["P1"], torch.cat([val_data_pairs["BP1"], val_data_pairs["BP2"]], dim=1))
+    #         G.train()
+    #         path = os.path.join(opt.output_dir, FAKE_IMG_FNAME.format(engine.state.iteration))
+    #         get_current_visuals(path, val_data_pairs, [generated_img])
 
     return trainer
 
 
 def get_data_loader(opt):
-    image_dataset = dataset.AttrBoneDataset(
-        "data/market/attribute/market_attribute.mat",
-        os.path.join(opt.market1501, "bounding_box_train/"),
-        "data/market/train/pose_map_image/",
-        "data/market/train/pose_mask_image/",
-        opt.train_pair_path,
-        "data/market/annotation-train.csv",
-        flip_rate=opt.flip_rate,
+    image_dataset = dataset.BoneDataset(
+        "./tu",
+        "data/tu/test/pose_map_image/",
+        "data/tu/test/pose_mask_image/",
+        "data/tu/pairs-test.csv",
+        "data/tu/annotation-test.csv",
+        flip_rate=0.5
     )
 
     image_loader = DataLoader(

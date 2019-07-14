@@ -12,11 +12,11 @@ def generate_gif(gif_path, filenames, duration=0.1):
 def main():
     path = "./checkpoints/PG2-improve-16/"
     filenames = [
-        "{}iteration_{}.png".format(path, i * 200)
-        for i in range(1, 38)
+        "./tuuu/tu_4.jpg___d ({}).jpg_vis.jpg".format(i)
+        for i in range(1, 29)
     ]
 
-    generate_gif("PG2-improve-16.gif", filenames, 0.1)
+    generate_gif("dance.gif", filenames, 0.1)
 
 
 if __name__ == '__main__':

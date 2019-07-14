@@ -176,7 +176,7 @@ def compute_cordinates(heatmap_avg, paf_avg, th1=0.1, th2=0.05):
 # input_folder = './results/fashion_PATN/test_latest/images_crop/'
 # output_path = './results/fashion_PATN/test_latest/pckh.csv'
 
-input_folder = './_r'
+input_folder = './tu'
 output_path = 'pckh.csv'
 
 

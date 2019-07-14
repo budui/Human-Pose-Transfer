@@ -61,15 +61,12 @@ def get_tester(option, device):
 
     limit = option.limit
 
-    inter = get_interpolation_pose()
-
     def step(engine, batch):
 
-        i = True
+        i = False
         if i:
             new_poses = inter(batch["P1_name"][0], batch["P2_name"][0])
             show_pose(new_poses, "{}_{}_pose.jpg".format(batch["P1_name"][0], batch["P2_name"][0]))
-            new_poses
             generated_imgs = generate(batch)
         else:
             generated_imgs = generate(batch)
@@ -119,6 +116,18 @@ def add_new_arg_for_parser(parser, name):
 
 
 def get_data_loader(opt):
+    image_dataset = BoneDataset(
+        "./tu",
+        "data/tu/test/pose_map_image/",
+        "data/tu/test/pose_mask_image/",
+        "data/tu/pairs-dance.csv",
+        "data/tu/annotation-test.csv",
+    )
+    image_loader = DataLoader(image_dataset, batch_size=opt.batch_size, num_workers=8)
+    return image_loader
+
+
+def get_data_loader_(opt):
     image_dataset = BoneDataset(
         os.path.join(opt.market1501, "bounding_box_test/"),
         "data/market/test/pose_map_image/",

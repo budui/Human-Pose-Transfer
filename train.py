@@ -60,7 +60,7 @@ def main():
 
     parser = ArgumentParser(description='Training {}'.format(top_opt.name))
     parser.add_argument('--gpu_id', default=0, type=int, help='gpu_id: e.g. 0')
-    parser.add_argument('--batch_size', default=16, type=int, help='batch size')
+    parser.add_argument('--batch_size', default=2, type=int, help='batch size')
     parser.add_argument("--epochs", default=20, type=int, help="epoch_num")
     parser.add_argument("--output_dir", type=str, default="ckp/")
     parser.add_argument("--print_freq", type=int, default=100, help="freq of print log message, "
