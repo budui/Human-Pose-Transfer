@@ -46,7 +46,7 @@ first try
     loss_freq = 50
     check_freq = 1000
     [log.model_checkpoint]
-        n_saved = 10
+        n_saved = 15
         save_interval = 1000
     [log.verify]
         batch_size = 4
