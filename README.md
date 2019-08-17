@@ -109,6 +109,8 @@ I use `TOML` as the config format, and you can overwrite the config file with cl
 
 ### PG2
 
+First, please change `dataset.path.train.image` in `./implementations/PG2/stage[1|2].toml`
+
 train stage 1: `./run.py PG2-1 --gpu_id 0 -c ./implementations/PG2/stage1.toml -o ./checkpoints/PG2-1`
 
 train stage 2: `./run.py PG2-2 -g 2 -c ./implementations/PG2/stage2.toml -o ./checkpoints/PG2-2`
