@@ -1,0 +1,53 @@
+title = "PG2"
+
+description = """
+first try
+"""
+
+[dataset]
+    name = "market"
+    [dataset.path.train]
+        image = "/data/Market-1501-v15.09.15/bounding_box_train/"
+        bone = "./data/market/train/pose_map_image/"
+        mask = "./data/market/train/pose_mask_image/"
+        pair = "./data/market/pairs-train.csv"
+        annotation = "./data/market/annotation-train.csv"
+    [dataset.path.test]
+        image = "/data/Market-1501-v15.09.15/bounding_box_test/"
+        bone = "./data/market/test/pose_map_image/"
+        mask = "./data/market/test/pose_mask_image/"
+        pair = "./data/market/pairs-test.csv"
+        annotation = "./data/market/annotation-test.csv"
+
+[loss]
+    [loss.mask_l1]
+        weight = 10
+        mask_ratio = 1
+
+[model]
+    [model.generator1]
+        num_repeat = 5
+        middle_features_dim = 64
+        channels_base = 128
+        image_size = [128, 64]
+
+[train]
+    batch_size = 16
+    num_epoch = 2
+    [train.data]
+        replacement = false
+        flip_rate = 0.5
+    [train.generator1]
+        lr = 0.00002
+        beta1 = 0.5
+        beta2 = 0.999
+
+[log]
+    loss_freq = 50
+    check_freq = 1000
+    [log.model_checkpoint]
+        n_saved = 10
+        save_interval = 1000
+    [log.verify]
+        batch_size = 4
+        shuffle = true
