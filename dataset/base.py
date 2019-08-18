@@ -14,15 +14,24 @@ DEFAULT_TRANS = transforms.Compose([
 ])
 
 
+def wrap_dict_name(d, prefix):
+    return {
+        "{}{}".format(prefix, key): value
+        for key, value in d.items()
+    }
+
+
 class BoneDataset(Dataset):
     def __init__(self, image_folder, bone_folder, mask_folder, annotations_file_path,
-                 flip_rate=0.0, loader=default_loader, transform=DEFAULT_TRANS):
+                 exclude_fields=None, flip_rate=0.0, loader=default_loader, transform=DEFAULT_TRANS):
         self.image_folder = image_folder
         self.bone_folder = bone_folder
         self.mask_folder = mask_folder
 
         self.flip_rate = flip_rate
         self.use_flip = self.flip_rate > 0.0
+
+        self.exclude_fields = [] if exclude_fields is None else exclude_fields
 
         self.key_points = self.load_key_points(annotations_file_path)
 
@@ -78,11 +87,17 @@ class BoneDataset(Dataset):
 
     def prepare_item(self, image_name):
         flip = torch.rand(1).item() < self.flip_rate if self.use_flip else False
-        img = self.load_image_data(image_name, flip)
-        bone = self.load_bone_data(self.bone_folder, image_name, flip)
-        mask = self.load_mask_data(self.mask_folder, image_name, flip)
-        key_points = self.key_points[image_name]
-        return img, bone, mask, key_points
+
+        item = {"path": image_name}
+        if "img" not in self.exclude_fields:
+            item["img"] = self.load_image_data(image_name, flip)
+        if "bone" not in self.exclude_fields:
+            item["bone"] = self.load_bone_data(self.bone_folder, image_name, flip)
+        if "mask" not in self.exclude_fields:
+            item["mask"] = self.load_mask_data(self.mask_folder, image_name, flip)
+        if "key_points" not in self.exclude_fields:
+            item["key_points"] = self.key_points[image_name]
+        return item
 
     def __getitem__(self, input_idx):
         pass

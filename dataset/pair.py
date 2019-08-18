@@ -1,7 +1,7 @@
 import csv
 import os
 
-from .base import BoneDataset
+from .base import BoneDataset, wrap_dict_name
 
 
 class PairBoneDataset(BoneDataset):
@@ -22,31 +22,24 @@ class PairBoneDataset(BoneDataset):
     def __getitem__(self, input_idx):
         img_p1_name, img_p2_name = self.pairs[input_idx]
 
-        output_item_fields = ["path", "img", "bone", "mask", "key_points"]
-        output = dict(zip(
-            ["condition_{}".format(field) for field in output_item_fields],
-            [img_p1_name, *self.prepare_item(img_p1_name)]
-        ))
-        output.update(dict(zip(
-            ["target_{}".format(field) for field in output_item_fields],
-            [img_p2_name, *self.prepare_item(img_p2_name)]
-        )))
+        pair = wrap_dict_name(self.prepare_item(img_p1_name), "condition_")
+        pair.update(wrap_dict_name(self.prepare_item(img_p2_name), "target_"))
 
-        return output
+        return pair
 
     def __len__(self):
         return len(self.pairs)
 
     def __repr__(self):
         return """
-    {}(
-        size: {},
-        flip_rate: {},
-        image_folder: {},
-        bone_folder: {},
-        mask_folder: {}
-        pair_list_path: {}
-    )
+{}(
+    size: {},
+    flip_rate: {},
+    image_folder: {},
+    bone_folder: {},
+    mask_folder: {}
+    pair_list_path: {}
+)
     transform: {}
     """.format(self.__class__, len(self), self.flip_rate, self.image_folder,
                self.bone_folder, self.mask_folder, self.pair_list_path, self.transform)
