@@ -129,6 +129,25 @@ generate a grid image as example: `python tool/generate_grid.py -r ./generated_i
 
 ![PG2 result](doc/image/PG2-origin.jpg)
 
+#### Pre-trained model
+
+Please note that this is *NOT* the best result, the result is just not bad. it can not be used in academic papers.
+
+Pre-trained model can be downloaded [Google Drive](https://drive.google.com/open?id=1BCT4cF07Cq0EM62-Re6S56aTs_cc2280) or [Baidu Disk](https://pan.baidu.com/s/1loVpp8y67Xe4XOyR9Fq49w) 提取码(code): `n9nj`
+
+I also provided the tensorboard log file.
+
+```bash
+# download&extract files above.
+unzip weights.zip
+# generate all test images
+./run.py PG2-Generator -c ./implementations/PG2/stage2.toml -o ./generated_images -g 3  -t "model.generator1.pretrained_path='path/to/weights/G1.pth'" -t "model.generator2.pretrained_path='path/to/weights/G2.pth'"
+# random select some images to display
+`python tool/generate_grid.py -r ./generated_images -o images.jpg`
+# see training logs and images.
+tensorboard --logdir path/to/weights/train2 --port 8080
+```
+
 ## Evaluate
 
 For fair comparisons, I just copy&use the same evaluation codes in previous works, like `Deform`, `PG2` and `PATN`.
