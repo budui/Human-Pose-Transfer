@@ -89,6 +89,14 @@ optional arguments:
                         output path
   -t TOML, --toml TOML  overwrite toml config use cli arg
 ```
+
+During training, you can inspect `log`/`generated_images`/`model_weights` with tensorboard:
+
+```bash
+# tensorboard --logdir </path/to/checkpoint> --port <port>
+tensorboard --logdir ./checkpoints/PG2-1 --port 8000
+```
+
 ### example
 ```bash
 # ./run.py <engine_name> -g <gpu_id> -c </path/to/config> -o </path/to/checkpoint>
