@@ -1,1 +1,1 @@
-from .bone_dataset import BoneDataset
+from .pair import PairBoneDataset

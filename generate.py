@@ -18,7 +18,7 @@ IMPLEMENTED_GENERATOR = {
 
 def get_data_loader(config):
     cfg = config["dataset"]["path"]["test"]
-    image_dataset = dataset.BoneDataset(cfg["image"], cfg["bone"], cfg["mask"], cfg["pair"], cfg["annotation"])
+    image_dataset = dataset.PairBoneDataset(cfg["pair"], cfg["image"], cfg["bone"], cfg["mask"], cfg["annotation"])
     image_loader = DataLoader(image_dataset, batch_size=config["train"]["batch_size"],
                               num_workers=8, pin_memory=True, drop_last=True)
     print(image_dataset)
