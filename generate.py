@@ -7,7 +7,7 @@ from ignite.utils import convert_tensor
 from ignite.contrib.handlers import ProgressBar
 from torchvision.utils import save_image
 
-from torch.utils.data import DataLoader, RandomSampler
+from torch.utils.data import DataLoader, Subset
 
 import dataset
 
@@ -19,6 +19,8 @@ IMPLEMENTED_GENERATOR = {
 def get_data_loader(config):
     cfg = config["dataset"]["path"]["test"]
     image_dataset = dataset.PairBoneDataset(cfg["pair"], cfg["image"], cfg["bone"], cfg["mask"], cfg["annotation"])
+    if "generated_limit" in config:
+        image_dataset = Subset(image_dataset, range(config["generated_limit"]))
     image_loader = DataLoader(image_dataset, batch_size=config["train"]["batch_size"],
                               num_workers=8, pin_memory=True, drop_last=True)
     print(image_dataset)

@@ -113,6 +113,14 @@ I use `TOML` as the config format, and you can overwrite the config file with cl
         -t "loss.mask_l1.weight=20" -t "train.data.replacement=true"
 ``` 
 
+So, if you wang to specified generated images amount(default: full/12000), you can add a option: `-t "generated_limit=100"`
+
+the full command example:
+
+```bash
+./run.py PG2-Generator -g 1 -c ./implementations/PG2/stage2.toml -t "generated_limit=100"  -t "model.generator1.pretrained_path='./checkpoint/PG2-1/network_G1_26000.pth'" -t "model.generator2.pretrained_path='./checkpoint/PG2-2_26000/network_G2_13000.pth'" -o generated_images
+```
+
 ## Implement result
 
 ### PG2
