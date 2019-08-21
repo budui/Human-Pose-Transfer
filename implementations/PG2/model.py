@@ -4,8 +4,6 @@ import torch.nn.functional as functional
 
 from helper import weights_init
 
-__all__ = ["Generator1", "Generator2", "Discriminator"]
-
 
 class ResBlock(nn.Module):
     def __init__(self, in_channels, kernel_size=3, stride=1, padding=1):
@@ -81,8 +79,8 @@ class Generator1(nn.Module):
             for idx in range(num_repeat)
         ])
 
-        self.decoder_output_size = self._cal_decoder_output_size(image_size, num_repeat)
-        middle_space_size = self.decoder_output_size[0] * self.decoder_output_size[1]
+        self.encoder_output_size = self.cal_encoder_output_size(image_size, num_repeat)
+        middle_space_size = self.encoder_output_size[0] * self.encoder_output_size[1]
         self.down_fc = nn.Linear(middle_space_size * num_repeat * channels_base, middle_features_dim)
         self.up_fc = nn.Linear(middle_features_dim, middle_space_size * channels_base)
 
@@ -99,7 +97,7 @@ class Generator1(nn.Module):
         self.end_conv = nn.Conv2d(in_channels_list[-1], 3, kernel_size=3, stride=1, padding=1)
 
     @staticmethod
-    def _cal_decoder_output_size(image_size, num_repeat):
+    def cal_encoder_output_size(image_size, num_repeat):
         """
         calculate the height*width of encoder output features.
         every decoder block (except last block): output_tensor_height = input_tensor_height / 2
