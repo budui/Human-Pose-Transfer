@@ -119,7 +119,7 @@ class Generator1(nn.Module):
         x = self.down_fc(x)
         z = x
         x = self.up_fc(z)
-        x = x.view(x.size(0), self.channels_base, self.decoder_output_size[0], -1)
+        x = x.view(x.size(0), self.channels_base, self.encoder_output_size[0], -1)
 
         for i, block in enumerate(self.decoder):
             x = block(x, skip_connection_list[- 1 - i])

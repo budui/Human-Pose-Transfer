@@ -16,6 +16,7 @@ IMPLEMENTED_GENERATOR = {
     "PG2-Generator": "implementations.PG2.generate",
 }
 
+
 def get_data_loader(config):
     cfg = config["dataset"]["path"]["test"]
     image_dataset = dataset.PairBoneDataset(cfg["pair"], cfg["image"], cfg["bone"], cfg["mask"], cfg["annotation"])
@@ -25,6 +26,7 @@ def get_data_loader(config):
                               num_workers=8, pin_memory=True, drop_last=True)
     print(image_dataset)
     return image_loader
+
 
 def make_engine(generator_name, config, device=torch.device("cuda")):
     try:
@@ -49,7 +51,9 @@ def make_engine(generator_name, config, device=torch.device("cuda")):
             image_name = os.path.join(config["output"], "{}___{}_vis.jpg".format(names[0][i], names[1][i]))
             save_image([imgs.data[i] for imgs in images], image_name,
                        nrow=len(images), normalize=True, padding=0)
+
     return engine
+
 
 def run(config):
     train_data_loader = get_data_loader(config)
